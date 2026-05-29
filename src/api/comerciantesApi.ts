@@ -27,9 +27,6 @@ export type Comerciante = {
 export type CrearComercianteRequest = {
   nombres: string;
   correo: string;
-<<<<<<< Updated upstream
-  rol: RolUsuario;
-=======
   telefono: string;
   contrasena: string;
   rol: "COMERCIANTE";
@@ -54,7 +51,6 @@ export type EditarComercianteRequest = {
   ruc?: null;
   razonSocial?: null;
   telefono2?: null;
->>>>>>> Stashed changes
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
