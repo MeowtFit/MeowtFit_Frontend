@@ -68,7 +68,7 @@ export default function ComerciantesListPage() {
             return (
                 comerciante.nombres.toLowerCase().includes(texto) ||
                 comerciante.correo.toLowerCase().includes(texto) ||
-                comerciante.telefono.toLowerCase().includes(texto) ||
+                (comerciante.telefono ?? "").toLowerCase().includes(texto) ||
                 comerciante.estadoCuenta.toLowerCase().includes(texto)
             );
         });

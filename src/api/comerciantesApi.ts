@@ -8,18 +8,49 @@ export type RolUsuario = "ADMINISTRADOR" | "COMERCIANTE" | "CLIENTE";
 export type Comerciante = {
   idUsuario: number;
   nombres: string;
-  telefono: string;
+  telefono: string | null;
   correo: string;
   fechaCreacion: string;
+  fechaActualizacion: string;
   estadoCuenta: EstadoCuenta;
   rol: RolUsuario;
+
+  dni: string | null;
+  fechaNacimiento: string | null;
+  direccionEnvio: string | null;
+
+  ruc: string | null;
+  razonSocial: string | null;
+  telefono2: string | null;
 };
 
-export type ComercianteUpdateRequest = {
+export type CrearComercianteRequest = {
   nombres: string;
-  telefono: string;
   correo: string;
-  rol: RolUsuario;
+  telefono: string;
+  contrasena: string;
+  rol: "COMERCIANTE";
+
+  dni?: null;
+  fechaNacimiento?: null;
+  direccionEnvio?: null;
+  ruc?: null;
+  razonSocial?: null;
+  telefono2?: null;
+};
+
+export type EditarComercianteRequest = {
+  nombres: string;
+  correo: string;
+  telefono: string;
+  rol: "COMERCIANTE";
+
+  dni?: null;
+  fechaNacimiento?: null;
+  direccionEnvio?: null;
+  ruc?: null;
+  razonSocial?: null;
+  telefono2?: null;
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -55,9 +86,16 @@ export function buscarComerciantePorId(idUsuario: number) {
   return request<Comerciante>(`/api/usuarios/${idUsuario}`);
 }
 
+export function crearComerciante(data: CrearComercianteRequest) {
+  return request<Comerciante>("/api/usuarios", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export function editarComerciante(
   idUsuario: number,
-  data: ComercianteUpdateRequest
+  data: EditarComercianteRequest
 ) {
   return request<Comerciante>(`/api/usuarios/${idUsuario}`, {
     method: "PUT",
