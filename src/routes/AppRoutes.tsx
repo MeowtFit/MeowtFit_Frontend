@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-import CatalogDetailPage from "../pages/CatalogDetailPage";
-import CatalogHomePage from "../pages/CatalogHomePage";
+import CatalogDetailPage from "../pages/CatalogoDetailPage";
+import CatalogHomePage from "../pages/CatalogoHomePage";
 import LoginPage from "../pages/LoginPage";
 
 import AdminLayout from "../components/layout/AdminLayout";
@@ -14,6 +14,8 @@ import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
 import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
 import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
+import OlvideContraPage from "../pages/OlvideContraPage";
+
 import ProtectedRoute from "./ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -28,6 +30,10 @@ export const router = createBrowserRouter([
   {
     path: "/catalogDetail",
     element: <CatalogDetailPage />,
+  },
+  {
+    path: "/olvideContra",
+    element: <OlvideContraPage />,
   },
   {
     path: "/admin",

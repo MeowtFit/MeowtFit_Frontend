@@ -12,8 +12,13 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const location = useLocation();
 
-  const correo = localStorage.getItem("meowtfit_correo");
-  const rol = localStorage.getItem("meowtfit_rol");
+  const correo =
+    localStorage.getItem("meowtfit_correo") ||
+    sessionStorage.getItem("meowtfit_correo");
+
+  const rol =
+    localStorage.getItem("meowtfit_rol") ||
+    sessionStorage.getItem("meowtfit_rol");
 
   if (!correo || !rol) {
     return <Navigate to="/login" replace state={{ from: location }} />;
@@ -22,6 +27,8 @@ export default function ProtectedRoute({
   if (requiredRole && rol !== requiredRole) {
     localStorage.removeItem("meowtfit_correo");
     localStorage.removeItem("meowtfit_rol");
+    sessionStorage.removeItem("meowtfit_correo");
+    sessionStorage.removeItem("meowtfit_rol");
 
     return <Navigate to="/login" replace />;
   }

@@ -1,24 +1,35 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import { loginUsuario } from "@/api/authApi";
+import logoMeowtfit from "../assets/logo.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
-  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!correo.trim()) {
+      setError("Ingresa tu correo electrónico.");
+      return;
+    }
+
+    if (!contrasena.trim()) {
+      setError("Ingresa tu contraseña.");
+      return;
+    }
 
     try {
       setCargando(true);
@@ -29,21 +40,34 @@ export default function LoginPage() {
         contrasena,
       });
 
-      if (data.rol !== "ADMINISTRADOR") {
+      const rolNormalizado = data.rol?.toUpperCase();
+
+      if (rolNormalizado !== "ADMINISTRADOR") {
         localStorage.removeItem("meowtfit_correo");
         localStorage.removeItem("meowtfit_rol");
+        sessionStorage.removeItem("meowtfit_correo");
+        sessionStorage.removeItem("meowtfit_rol");
 
         setError("No tienes permisos para ingresar al panel de administrador.");
         return;
       }
 
-      localStorage.setItem("meowtfit_correo", data.correo);
-      localStorage.setItem("meowtfit_rol", data.rol);
+      localStorage.removeItem("meowtfit_correo");
+      localStorage.removeItem("meowtfit_rol");
+      sessionStorage.removeItem("meowtfit_correo");
+      sessionStorage.removeItem("meowtfit_rol");
+
+      const storage = rememberMe ? localStorage : sessionStorage;
+
+      storage.setItem("meowtfit_correo", data.correo);
+      storage.setItem("meowtfit_rol", rolNormalizado);
 
       navigate("/admin/comerciantes", { replace: true });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "No se pudo iniciar sesión.";
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar sesión. Inténtalo nuevamente.";
 
       setError(message);
     } finally {
@@ -52,55 +76,144 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted px-4">
-      <Card className="w-full max-w-md rounded-2xl shadow-xl">
-        <CardContent className="p-8">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold">Iniciar sesión</h1>
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-[#f8fafc] via-[#fdfbfb] to-[#fceef5] font-sans">
+      <header className="flex w-full items-center justify-center pb-4 pt-8">
+        <div className="flex flex-col items-center">
+          <img
+            src={logoMeowtfit}
+            alt="Logo Meowtfit"
+            className="h-20 w-auto object-contain"
+          />
+        </div>
+      </header>
 
-            <p className="mt-2 text-muted-foreground">Bienvenido de nuevo</p>
+      <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
+        <Card className="flex w-full max-w-4xl flex-col overflow-hidden rounded-md border-0 bg-white shadow-2xl md:flex-row">
+          <div
+            className="relative hidden min-h-[550px] bg-cover bg-center md:flex md:w-1/2"
+            style={{
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?q=80&w=1200&auto=format&fit=crop')",
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+            <div className="absolute bottom-10 left-10 right-10 text-white">
+              <h2 className="mb-2 text-xl font-medium">Inspiración local</h2>
+              <p className="text-sm text-gray-200">
+                Descubre la esencia de la moda boutique con sello peruano.
+              </p>
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+          <CardContent className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
+            <div className="mb-8">
+              <h1 className="text-xl font-medium text-gray-800">
+                Bienvenida de nuevo
+              </h1>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-
-              <Input
-                id="email"
-                type="email"
-                placeholder="correo@gmail.com"
-                value={correo}
-                onChange={(event) => setCorreo(event.target.value)}
-                required
-              />
+              <p className="mt-1 text-sm text-gray-500">
+                Accede a tu cuenta exclusiva de Meowtfit.
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+            <form className="space-y-4" onSubmit={handleLogin}>
+              <div className="space-y-4">
+                <Input
+                  id="correo"
+                  type="email"
+                  value={correo}
+                  onChange={(event) => setCorreo(event.target.value)}
+                  placeholder="CORREO ELECTRÓNICO"
+                  className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                  required
+                />
 
-              <Input
-                id="password"
-                type="password"
-                placeholder="********"
-                value={contrasena}
-                onChange={(event) => setContrasena(event.target.value)}
-                required
-              />
-            </div>
+                <div className="relative">
+                  <Input
+                    id="contrasena"
+                    type={showPassword ? "text" : "password"}
+                    value={contrasena}
+                    onChange={(event) => setContrasena(event.target.value)}
+                    placeholder="CONTRASEÑA"
+                    className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                    required
+                  />
 
-            <Button className="w-full" type="submit" disabled={cargando}>
-              {cargando && <Loader2 className="animate-spin" size={17} />}
-              Ingresar
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((actual) => !actual)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {error && (
+                  <p className="text-xs font-medium text-red-500">{error}</p>
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <label className="flex cursor-pointer items-center gap-2 text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    className="h-3.5 w-3.5 rounded-sm border-gray-300 text-[#0a7c98] focus:ring-[#0a7c98]"
+                  />
+                  Recordarme
+                </label>
+
+                <Link
+                  to="/olvideContra"
+                  className="font-semibold tracking-wide text-[#b43b6c] hover:underline"
+                >
+                  Olvidé mi contraseña
+                </Link>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={cargando}
+                className="mt-6 h-11 w-full rounded-sm bg-[#0a7c98] text-xs font-medium tracking-wide text-white hover:bg-[#086379]"
+              >
+                {cargando && <Loader2 className="animate-spin" size={16} />}
+                INICIAR SESIÓN
+              </Button>
+
+              <div className="mb-2 mt-6 text-center text-xs text-gray-500">
+                Accede a tu cuenta exclusiva de Meowtfit.
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
+
+      <footer className="flex w-full flex-col items-center justify-between px-4 py-6 text-xs text-gray-500 md:flex-row md:px-12">
+        <div className="mb-4 text-sm font-bold text-gray-900 md:mb-0">
+          Meowtfit
+        </div>
+
+        <div className="mb-4 flex flex-wrap justify-center gap-4 md:mb-0 md:gap-8">
+          <a href="#" className="transition-colors hover:text-gray-800">
+            Guía de Tallas
+          </a>
+          <a href="#" className="transition-colors hover:text-gray-800">
+            Envíos y Retornos
+          </a>
+          <a href="#" className="transition-colors hover:text-gray-800">
+            Sostenibilidad
+          </a>
+          <a href="#" className="transition-colors hover:text-gray-800">
+            Contacto
+          </a>
+        </div>
+
+        <div className="text-center text-[10px] md:text-right md:text-xs">
+          © 2026 Meowtfit.
+        </div>
+      </footer>
     </div>
   );
 }

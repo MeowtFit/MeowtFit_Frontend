@@ -22,7 +22,7 @@ export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   });
 
   if (!response.ok) {
-    let message = "Correo o contraseña incorrectos";
+    let message = "Correo o contraseña incorrectos.";
 
     try {
       const errorData = await response.json();
