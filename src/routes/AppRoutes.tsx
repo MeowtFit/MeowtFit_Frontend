@@ -14,6 +14,7 @@ import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
 import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
 import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
+import ProtectedRoute from "./ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
@@ -30,7 +31,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: (
+      <ProtectedRoute requiredRole="ADMINISTRADOR">
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -57,16 +62,16 @@ export const router = createBrowserRouter([
         element: <ComerciantesPage />,
       },
       {
-        path: "configuracion",
-        element: <ConfiguraciónPage />,
-      },
-      {
         path: "comerciantes/listar",
         element: <ComerciantesListPage />,
       },
       {
         path: "comerciantes/:id/editar",
         element: <ComerciantesEditPage />,
+      },
+      {
+        path: "configuracion",
+        element: <ConfiguraciónPage />,
       },
     ],
   },
