@@ -15,6 +15,8 @@ import VentasPage from "../pages/admin/VentasPage";
 import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
 import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
+import ComerciantesCreatePage from "../pages/admin/ComerciantesCreatePage";
+
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -74,6 +76,10 @@ export const router = createBrowserRouter([
       {
         path: "comerciantes/:id/editar",
         element: <ComerciantesEditPage />,
+      },
+      {
+        path: "comerciantes/crear",
+        element: <ComerciantesCreatePage />,
       },
       {
         path: "configuracion",
