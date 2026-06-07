@@ -37,8 +37,8 @@ export default function ComerciantesPage() {
               </span>
             </Link>
 
-            <button
-              type="button"
+            <Link
+              to="/admin/comerciantes/crear"
               className="flex min-h-[86px] flex-col items-start gap-3 rounded-lg bg-[#e3eef2] px-6 py-5 text-left text-[#087f99] transition hover:-translate-y-0.5 hover:bg-[#d4e5ea] hover:shadow-md"
             >
               <PlusCircle size={20} />
@@ -46,7 +46,7 @@ export default function ComerciantesPage() {
               <span className="text-[10px] font-extrabold uppercase tracking-wide">
                 Agregar comerciantes
               </span>
-            </button>
+            </Link>
           </div>
         </article>
       </div>
