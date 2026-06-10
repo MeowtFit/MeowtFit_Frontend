@@ -19,6 +19,7 @@ import ComerciantesCreatePage from "../pages/admin/ComerciantesCreatePage";
 
 
 import ProtectedRoute from "./ProtectedRoute";
+import ProductoNuevoPage from "@/pages/admin/ProductoNuevoPage";
 
 export const router = createBrowserRouter([
   {
@@ -84,6 +85,10 @@ export const router = createBrowserRouter([
       {
         path: "configuracion",
         element: <ConfiguraciónPage />,
+      },
+      {
+        path: "inventario/crear",
+        element: <ProductoNuevoPage />,
       },
     ],
   },
