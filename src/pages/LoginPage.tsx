@@ -1,22 +1,27 @@
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
 import { loginUsuario } from "@/api/authApi";
 import logoMeowtfit from "../assets/logo.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const redirectTo =
+    (location.state as { from?: string } | null)?.from ?? "/";
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,16 +47,6 @@ export default function LoginPage() {
 
       const rolNormalizado = data.rol?.toUpperCase();
 
-      if (rolNormalizado !== "ADMINISTRADOR") {
-        localStorage.removeItem("meowtfit_correo");
-        localStorage.removeItem("meowtfit_rol");
-        sessionStorage.removeItem("meowtfit_correo");
-        sessionStorage.removeItem("meowtfit_rol");
-
-        setError("No tienes permisos para ingresar al panel de administrador.");
-        return;
-      }
-
       localStorage.removeItem("meowtfit_correo");
       localStorage.removeItem("meowtfit_rol");
       sessionStorage.removeItem("meowtfit_correo");
@@ -62,7 +57,26 @@ export default function LoginPage() {
       storage.setItem("meowtfit_correo", data.correo);
       storage.setItem("meowtfit_rol", rolNormalizado);
 
-      navigate("/admin/comerciantes", { replace: true });
+      if (rolNormalizado === "ADMINISTRADOR") {
+        navigate("/admin/comerciantes", { replace: true });
+        return;
+      }
+
+      if (rolNormalizado === "CLIENTE") {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+
+      if (rolNormalizado === "COMERCIANTE") {
+        setError("El acceso para comerciantes todavía no está habilitado.");
+        localStorage.removeItem("meowtfit_correo");
+        localStorage.removeItem("meowtfit_rol");
+        sessionStorage.removeItem("meowtfit_correo");
+        sessionStorage.removeItem("meowtfit_rol");
+        return;
+      }
+
+      setError("Rol de usuario no reconocido.");
     } catch (err) {
       const message =
         err instanceof Error
@@ -108,6 +122,13 @@ export default function LoginPage() {
 
           <CardContent className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
             <div className="mb-8">
+              {/* Botón de regreso */}
+                <button onClick={() => navigate(-1)}
+                className="cursor-pointer flex items-center text-[#b43b6c] text-xs font-bold uppercase tracking-wider hover:underline mb-5 w-fit transition-all"
+                >
+                <ArrowLeft size={14} className="mr-2" />
+                Volver
+                </button>
               <h1 className="text-xl font-medium text-gray-800">
                 Bienvenida de nuevo
               </h1>
@@ -126,6 +147,7 @@ export default function LoginPage() {
                   onChange={(event) => setCorreo(event.target.value)}
                   placeholder="CORREO ELECTRÓNICO"
                   className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                  autoComplete="email"
                   required
                 />
 
@@ -137,13 +159,14 @@ export default function LoginPage() {
                     onChange={(event) => setContrasena(event.target.value)}
                     placeholder="CONTRASEÑA"
                     className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                    autoComplete="current-password"
                     required
                   />
 
                   <button
                     type="button"
                     onClick={() => setShowPassword((actual) => !actual)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
