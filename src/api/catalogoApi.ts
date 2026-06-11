@@ -58,6 +58,28 @@ export type ProductoFilters = {
   sort?: string;
 };
 
+export type ProductoResumen = {
+  idProducto: number;
+  nombre: string;
+  precioBase: number;
+  imagenUrl: string | null;
+};
+
+export type Color = {
+  idColor: number;
+  nombre: string;
+  hexadecimal: string;
+};
+
+export type VarianteProductoDetalle = {
+  idVariante: number;
+  talla: string;
+  stockDisponible: number;
+  stockReservado: number;
+  color: Color;
+  producto: ProductoResumen;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
@@ -123,4 +145,10 @@ export function listarProductos(filters: ProductoFilters) {
 
 export function buscarProductoPorId(idProducto: number) {
   return request<Producto>(`/api/productos/${idProducto}`);
+}
+
+export function obtenerVariantePorId(idVariante: number) {
+  return request<VarianteProductoDetalle>(
+    `/api/variantes/${idVariante}`
+  );
 }

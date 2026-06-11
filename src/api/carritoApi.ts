@@ -88,3 +88,10 @@ export function actualizarLineaCarrito(
     body: JSON.stringify(data),
   });
 }
+
+export function eliminarLineaCarrito(idLineaCarrito: number) {
+  return request<void>(`/api/lineas-carrito/${idLineaCarrito}`, {
+    method: "DELETE",
+  });
+}
+
