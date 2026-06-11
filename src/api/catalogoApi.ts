@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export type EstadoProducto = "ACTIVO" | "INACTIVO";
 
@@ -7,10 +7,20 @@ export type Categoria = {
   nombre: string;
 };
 
+export type ColorVariante =
+  | string
+  | {
+      idColor?: number;
+      nombre?: string;
+      nombreColor?: string;
+      codigoHex?: string;
+      hex?: string;
+    };
+
 export type VarianteProducto = {
   idVariante: number;
   talla: string;
-  color: string;
+  color: ColorVariante | null;
   stockDisponible: number;
   stockReservado: number;
   imagenUrl?: string | null;
@@ -48,11 +58,14 @@ export type ProductoFilters = {
   sort?: string;
 };
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...options?.headers,
     },
+    ...options,
   });
 
   if (!response.ok) {
@@ -60,12 +73,12 @@ async function request<T>(path: string): Promise<T> {
 
     try {
       const data = await response.json();
-      message = data.message ?? data.error ?? data.mensaje ?? message;
+      message = data.mensaje ?? data.message ?? data.error ?? message;
     } catch {
       message = response.statusText || message;
     }
 
-    throw new Error(message);
+    throw new Error(`${response.status} ${message}`);
   }
 
   return response.json() as Promise<T>;
@@ -105,9 +118,7 @@ export function listarProductos(filters: ProductoFilters) {
     params.set("sort", filters.sort);
   }
 
-  return request<PageResponse<Producto>>(
-    `/api/productos?${params.toString()}`
-  );
+  return request<PageResponse<Producto>>(`/api/productos?${params.toString()}`);
 }
 
 export function buscarProductoPorId(idProducto: number) {

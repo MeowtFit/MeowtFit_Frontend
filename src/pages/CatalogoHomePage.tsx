@@ -16,7 +16,7 @@ import {
   type Producto,
 } from "@/api/catalogoApi";
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const PAGE_SIZE = 6;
 
@@ -177,7 +177,6 @@ export default function CatalogHomePage() {
             </Button>
 
             <Search size={19} />
-
             <Link
               to={`/login`}
               className="text-sm font-medium leading-tight text-slate-800 hover:text-[#087f99]"
@@ -349,7 +348,6 @@ export default function CatalogHomePage() {
                     )}
 
 
-
                     <Link to={`/catalogDetail/${producto.idProducto}`}>
                       <img
                         src={normalizarImagen(producto.imagenUrl)}
@@ -423,23 +421,6 @@ export default function CatalogHomePage() {
           </div>
         </section>
       </main>
-
-      <footer className="mt-10 border-t border-slate-100 bg-white px-6 py-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 text-xs text-slate-400 md:flex-row">
-          <p className="text-sm font-extrabold tracking-[0.2em] text-[#087f99]">
-            MEOWTFIT BOUTIQUE
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-6 uppercase tracking-widest">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Shipping Info</a>
-            <a href="#">Returns</a>
-          </div>
-
-          <p>© 2026 Meowtfit Boutique. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 }

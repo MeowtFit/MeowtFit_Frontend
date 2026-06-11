@@ -45,7 +45,7 @@ export default function LoginPage() {
         contrasena,
       });
 
-      const rolNormalizado = data.rol?.toUpperCase();
+      const rolNormalizado = data.rol.toUpperCase();
 
       localStorage.removeItem("meowtfit_correo");
       localStorage.removeItem("meowtfit_rol");
@@ -62,19 +62,20 @@ export default function LoginPage() {
         return;
       }
 
+      if (rolNormalizado === "COMERCIANTE") {
+        navigate("/admin/comerciantes", { replace: true });
+        return;
+      }
+
       if (rolNormalizado === "CLIENTE") {
         navigate(redirectTo, { replace: true });
         return;
       }
 
-      if (rolNormalizado === "COMERCIANTE") {
-        setError("El acceso para comerciantes todavía no está habilitado.");
-        localStorage.removeItem("meowtfit_correo");
-        localStorage.removeItem("meowtfit_rol");
-        sessionStorage.removeItem("meowtfit_correo");
-        sessionStorage.removeItem("meowtfit_rol");
-        return;
-      }
+      localStorage.removeItem("meowtfit_correo");
+      localStorage.removeItem("meowtfit_rol");
+      sessionStorage.removeItem("meowtfit_correo");
+      sessionStorage.removeItem("meowtfit_rol");
 
       setError("Rol de usuario no reconocido.");
     } catch (err) {
@@ -122,13 +123,15 @@ export default function LoginPage() {
 
           <CardContent className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
             <div className="mb-8">
-              {/* Botón de regreso */}
-                <button onClick={() => navigate(-1)}
-                className="cursor-pointer flex items-center text-[#b43b6c] text-xs font-bold uppercase tracking-wider hover:underline mb-5 w-fit transition-all"
-                >
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mb-5 flex w-fit cursor-pointer items-center text-xs font-bold uppercase tracking-wider text-[#b43b6c] transition-all hover:underline"
+              >
                 <ArrowLeft size={14} className="mr-2" />
                 Volver
-                </button>
+              </button>
+
               <h1 className="text-xl font-medium text-gray-800">
                 Bienvenida de nuevo
               </h1>

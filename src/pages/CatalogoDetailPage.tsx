@@ -23,7 +23,7 @@ import {
   obtenerOCrearCarritoActivo,
 } from "@/api/carritoApi";
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";
@@ -42,20 +42,31 @@ function formatearPrecio(precio: number) {
   }).format(precio);
 }
 
-function stockReal(variante?: VarianteProducto | null) {
-  if (!variante) return 0;
+function obtenerNombreColor(color: VarianteProducto["color"]) {
+  if (!color) return "Sin color";
 
-  return Math.max(
-    (variante.stockDisponible ?? 0) - (variante.stockReservado ?? 0),
-    0
-  );
+  if (typeof color === "string") {
+    return color;
+  }
+
+  return color.nombre ?? color.nombreColor ?? "Sin color";
 }
 
-function varianteTieneStock(variante?: VarianteProducto | null) {
-  return stockReal(variante) > 0;
+function obtenerHexColor(color: VarianteProducto["color"]) {
+  if (!color) return "#d1d5db";
+
+  if (typeof color === "object") {
+    return (
+      color.codigoHex ??
+      color.hex ??
+      obtenerColorVisualPorNombre(obtenerNombreColor(color))
+    );
+  }
+
+  return obtenerColorVisualPorNombre(color);
 }
 
-function obtenerColorVisual(color: string) {
+function obtenerColorVisualPorNombre(color: string) {
   const colorNormalizado = color.toLowerCase();
 
   const colores: Record<string, string> = {
@@ -79,20 +90,59 @@ function obtenerColorVisual(color: string) {
   return colores[colorNormalizado] ?? "#d1d5db";
 }
 
+function stockReal(variante?: VarianteProducto | null) {
+  if (!variante) return 0;
+
+  return Math.max(
+    (variante.stockDisponible ?? 0) - (variante.stockReservado ?? 0),
+    0
+  );
+}
+
+function varianteTieneStock(variante?: VarianteProducto | null) {
+  return stockReal(variante) > 0;
+}
+
 function obtenerColores(variantes: VarianteProducto[]) {
-  return Array.from(new Set(variantes.map((variante) => variante.color)));
+  const mapa = new Map<
+    string,
+    {
+      nombre: string;
+      hex: string;
+    }
+  >();
+
+  variantes.forEach((variante) => {
+    const nombre = obtenerNombreColor(variante.color);
+
+    if (!mapa.has(nombre)) {
+      mapa.set(nombre, {
+        nombre,
+        hex: obtenerHexColor(variante.color),
+      });
+    }
+  });
+
+  return Array.from(mapa.values());
 }
 
 function obtenerVariantesPorColor(
   variantes: VarianteProducto[],
-  color: string
+  colorSeleccionado: string
 ) {
-  return variantes.filter((variante) => variante.color === color);
+  return variantes.filter(
+    (variante) => obtenerNombreColor(variante.color) === colorSeleccionado
+  );
 }
 
-function colorTieneStock(variantes: VarianteProducto[], color: string) {
+function colorTieneStock(
+  variantes: VarianteProducto[],
+  colorSeleccionado: string
+) {
   return variantes.some(
-    (variante) => variante.color === color && varianteTieneStock(variante)
+    (variante) =>
+      obtenerNombreColor(variante.color) === colorSeleccionado &&
+      varianteTieneStock(variante)
   );
 }
 
@@ -157,7 +207,9 @@ export default function CatalogoDetailPage() {
         );
 
         if (primeraVarianteConStock) {
-          setColorSeleccionado(primeraVarianteConStock.color);
+          setColorSeleccionado(
+            obtenerNombreColor(primeraVarianteConStock.color)
+          );
           setTallaSeleccionada(primeraVarianteConStock.talla);
         } else {
           setColorSeleccionado("");
@@ -182,11 +234,13 @@ export default function CatalogoDetailPage() {
 
   const coloresDisponibles = useMemo(() => {
     if (!producto) return [];
+
     return obtenerColores(producto.variantes);
   }, [producto]);
 
   const variantesDelColor = useMemo(() => {
     if (!producto || !colorSeleccionado) return [];
+
     return obtenerVariantesPorColor(producto.variantes, colorSeleccionado);
   }, [producto, colorSeleccionado]);
 
@@ -196,7 +250,7 @@ export default function CatalogoDetailPage() {
     return (
       producto.variantes.find(
         (variante) =>
-          variante.color === colorSeleccionado &&
+          obtenerNombreColor(variante.color) === colorSeleccionado &&
           variante.talla === tallaSeleccionada
       ) ?? null
     );
@@ -229,7 +283,9 @@ export default function CatalogoDetailPage() {
     }
 
     const primeraVarianteDisponible = producto.variantes.find(
-      (variante) => variante.color === color && varianteTieneStock(variante)
+      (variante) =>
+        obtenerNombreColor(variante.color) === color &&
+        varianteTieneStock(variante)
     );
 
     if (!primeraVarianteDisponible) return;
@@ -398,7 +454,7 @@ export default function CatalogoDetailPage() {
             MEOWTFIT
           </Link>
 
-          
+         
 
           <div className="flex items-center gap-5 text-[#087f99]">
             <Button
@@ -409,7 +465,13 @@ export default function CatalogoDetailPage() {
             </Button>
 
             <Search size={19} />
-            <UserRound size={19} />
+            
+            <Link
+              to={`/login`}
+              className="text-sm font-medium leading-tight text-slate-800 hover:text-[#087f99]"
+            >
+              <UserRound size={19} />
+            </Link>
           </div>
         </div>
       </header>
@@ -467,7 +529,6 @@ export default function CatalogoDetailPage() {
                 </p>
               </div>
 
-              
             </div>
 
             <p className="mt-6 max-w-xl text-sm leading-6 text-slate-500">
@@ -491,17 +552,22 @@ export default function CatalogoDetailPage() {
 
               <div className="flex flex-wrap gap-3">
                 {coloresDisponibles.map((color) => {
-                  const sinStock = !colorTieneStock(producto.variantes, color);
+                  const sinStock = !colorTieneStock(
+                    producto.variantes,
+                    color.nombre
+                  );
 
                   return (
                     <button
-                      key={color}
+                      key={color.nombre}
                       type="button"
                       disabled={sinStock}
-                      onClick={() => handleSeleccionarColor(color)}
-                      title={sinStock ? `${color} sin stock` : color}
+                      onClick={() => handleSeleccionarColor(color.nombre)}
+                      title={
+                        sinStock ? `${color.nombre} sin stock` : color.nombre
+                      }
                       className={`grid h-9 w-9 place-items-center rounded-full border transition ${
-                        colorSeleccionado === color
+                        colorSeleccionado === color.nombre
                           ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
                           : "border-slate-200"
                       } ${
@@ -512,7 +578,7 @@ export default function CatalogoDetailPage() {
                     >
                       <span
                         className="h-6 w-6 rounded-full border border-slate-200"
-                        style={{ backgroundColor: obtenerColorVisual(color) }}
+                        style={{ backgroundColor: color.hex }}
                       />
                     </button>
                   );
@@ -570,7 +636,8 @@ export default function CatalogoDetailPage() {
 
               {varianteSeleccionada && (
                 <p className="mt-1 text-xs text-slate-500">
-                  Variante seleccionada: {varianteSeleccionada.color} /{" "}
+                  Variante seleccionada:{" "}
+                  {obtenerNombreColor(varianteSeleccionada.color)} /{" "}
                   {varianteSeleccionada.talla}
                 </p>
               )}
