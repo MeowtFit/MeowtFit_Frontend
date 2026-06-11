@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = "http://localhost:8080";
 
 export type RolUsuario = "ADMINISTRADOR" | "COMERCIANTE" | "CLIENTE";
 
@@ -15,6 +15,7 @@ export type LoginResponse = {
 export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
