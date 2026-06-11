@@ -5,8 +5,9 @@ import {
   ChevronRight,
   Search,
   ShoppingCart,
-  UserRound,
 } from "lucide-react";
+
+import UserSessionMenu from "@/components/layout/UserSessionMenu";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +17,7 @@ import {
   type Producto,
 } from "@/api/catalogoApi";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = "http://localhost:8080";
 
 const PAGE_SIZE = 6;
 
@@ -177,13 +178,8 @@ export default function CatalogHomePage() {
             </Button>
 
             <Search size={19} />
-            <Link
-              to={`/login`}
-              className="text-sm font-medium leading-tight text-slate-800 hover:text-[#087f99]"
-            >
-              <UserRound size={19} />
-            </Link>
 
+            <UserSessionMenu />
           </div>
         </div>
       </header>
@@ -258,8 +254,8 @@ export default function CatalogHomePage() {
                   type="button"
                   onClick={() => handleTalla(talla)}
                   className={`h-9 rounded-lg border px-3 text-sm transition ${tallaSeleccionada === talla
-                      ? "border-[#087f99] bg-cyan-50 text-[#087f99]"
-                      : "border-slate-300 bg-white text-slate-600 hover:border-[#087f99]"
+                    ? "border-[#087f99] bg-cyan-50 text-[#087f99]"
+                    : "border-slate-300 bg-white text-slate-600 hover:border-[#087f99]"
                     }`}
                 >
                   {talla}
@@ -397,8 +393,8 @@ export default function CatalogHomePage() {
                 type="button"
                 onClick={() => setPagina(page)}
                 className={`h-10 min-w-10 rounded-lg border px-3 text-sm font-bold transition ${pagina === page
-                    ? "border-[#087f99] bg-[#087f99] text-white"
-                    : "border-slate-200 bg-white text-slate-500 hover:border-[#087f99] hover:text-[#087f99]"
+                  ? "border-[#087f99] bg-[#087f99] text-white"
+                  : "border-slate-200 bg-white text-slate-500 hover:border-[#087f99] hover:text-[#087f99]"
                   }`}
               >
                 {page + 1}

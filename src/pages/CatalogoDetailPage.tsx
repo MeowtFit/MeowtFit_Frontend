@@ -7,8 +7,9 @@ import {
   Search,
   ShoppingCart,
   Truck,
-  UserRound,
 } from "lucide-react";
+
+import UserSessionMenu from "@/components/layout/UserSessionMenu";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,7 @@ import {
   obtenerOCrearCarritoActivo,
 } from "@/api/carritoApi";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = "http://localhost:8080";
 
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";
@@ -454,7 +455,6 @@ export default function CatalogoDetailPage() {
             MEOWTFIT
           </Link>
 
-         
 
           <div className="flex items-center gap-5 text-[#087f99]">
             <Button
@@ -465,13 +465,8 @@ export default function CatalogoDetailPage() {
             </Button>
 
             <Search size={19} />
-            
-            <Link
-              to={`/login`}
-              className="text-sm font-medium leading-tight text-slate-800 hover:text-[#087f99]"
-            >
-              <UserRound size={19} />
-            </Link>
+
+            <UserSessionMenu />
           </div>
         </div>
       </header>
@@ -566,15 +561,13 @@ export default function CatalogoDetailPage() {
                       title={
                         sinStock ? `${color.nombre} sin stock` : color.nombre
                       }
-                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${
-                        colorSeleccionado === color.nombre
+                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${colorSeleccionado === color.nombre
                           ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
                           : "border-slate-200"
-                      } ${
-                        sinStock
+                        } ${sinStock
                           ? "cursor-not-allowed opacity-35"
                           : "hover:border-[#bd2d73]"
-                      }`}
+                        }`}
                     >
                       <span
                         className="h-6 w-6 rounded-full border border-slate-200"
@@ -611,15 +604,13 @@ export default function CatalogoDetailPage() {
                       type="button"
                       disabled={sinStock}
                       onClick={() => handleSeleccionarTalla(variante)}
-                      className={`h-11 rounded-lg border text-sm font-semibold transition ${
-                        tallaSeleccionada === variante.talla
+                      className={`h-11 rounded-lg border text-sm font-semibold transition ${tallaSeleccionada === variante.talla
                           ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
                           : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
-                      } ${
-                        sinStock
+                        } ${sinStock
                           ? "cursor-not-allowed opacity-40 line-through hover:border-slate-200"
                           : ""
-                      }`}
+                        }`}
                     >
                       {variante.talla}
                     </button>
@@ -689,11 +680,10 @@ export default function CatalogoDetailPage() {
 
             {mensajeCarrito && (
               <p
-                className={`mt-3 text-sm font-semibold ${
-                  mensajeCarrito.includes("correctamente")
+                className={`mt-3 text-sm font-semibold ${mensajeCarrito.includes("correctamente")
                     ? "text-emerald-600"
                     : "text-red-600"
-                }`}
+                  }`}
               >
                 {mensajeCarrito}
               </p>
