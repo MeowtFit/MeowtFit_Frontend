@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Search,
   ShoppingCart,
 } from "lucide-react";
@@ -46,7 +47,17 @@ function formatearPrecio(precio: number) {
   }).format(precio);
 }
 
+function obtenerRolCatalogo(): string | null {
+  return (
+    localStorage.getItem("meowtfit_rol") ||
+    sessionStorage.getItem("meowtfit_rol")
+  );
+}
+
 export default function CatalogHomePage() {
+  const navigate = useNavigate();
+  const rolActual = obtenerRolCatalogo();
+
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
@@ -169,7 +180,7 @@ export default function CatalogHomePage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-5 text-[#087f99]">
+          <div className="flex items-center gap-4 text-[#087f99]">
             <Button
               size="icon"
               className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
@@ -177,7 +188,19 @@ export default function CatalogHomePage() {
               <ShoppingCart size={20} />
             </Button>
 
-            <Search size={19} />
+            {/* Botón Mis Pedidos — visible solo para CLIENTE y ADMINISTRADOR */}
+            {(rolActual === "CLIENTE" || rolActual === "ADMINISTRADOR") && (
+              <Button
+                size="icon"
+                title="Mis pedidos"
+                className="h-12 w-12 rounded-full bg-[#087f99] text-white hover:bg-[#076f86]"
+                onClick={() => navigate("/pedidos")}
+              >
+                <ClipboardList size={20} />
+              </Button>
+            )}
+
+            <Search size={19} className="cursor-pointer hover:text-[#076f86]" />
 
             <UserSessionMenu />
           </div>

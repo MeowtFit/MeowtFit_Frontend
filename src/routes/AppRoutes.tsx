@@ -18,12 +18,18 @@ import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
 
+import PedidosListPage from "../pages/PedidosListPage";
 import ProtectedRoute from "./ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <CatalogHomePage />,
+  },
+  {
+    // Accesible para CLIENTE y ADMINISTRADOR (validación interna en el componente)
+    path: "/pedidos",
+    element: <PedidosListPage />,
   },
   {
     path: "/catalogDetail/:id",
