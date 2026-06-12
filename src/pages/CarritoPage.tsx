@@ -54,9 +54,7 @@ function normalizarImagen(url?: string | null) {
   if (!url) {
     return "https://images.unsplash.com/photo-1529139574466-a303027c1d8b";
   }
-
   if (url.startsWith("http")) return url;
-
   return `${API_BASE_URL}${url}`;
 }
 
@@ -85,20 +83,11 @@ function limpiarSesionLocal() {
 
 function obtenerNombreColor(color: unknown) {
   if (!color) return "Sin color";
-
-  if (typeof color === "string") {
-    return color;
-  }
-
+  if (typeof color === "string") return color;
   if (typeof color === "object") {
-    const colorObj = color as {
-      nombre?: string;
-      nombreColor?: string;
-    };
-
+    const colorObj = color as { nombre?: string; nombreColor?: string };
     return colorObj.nombre ?? colorObj.nombreColor ?? "Sin color";
   }
-
   return "Sin color";
 }
 
@@ -118,10 +107,42 @@ export default function CarritoPage() {
   const [generandoFactura, setGenerandoFactura] = useState(false);
   const [mensajeFactura, setMensajeFactura] = useState<string | null>(null);
 
+  // 1. CONTROL DE REDIRECCIÓN SI NO ESTÁ LOGUEADO AL ENTRAR
   useEffect(() => {
+    const sesion = obtenerSesionUsuario();
+    if (!sesion.estaLogeado) {
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname },
+      });
+      return;
+    }
+
     void cargarCarrito();
     void cargarConfiguracion();
-  }, []);
+  }, [navigate, location.pathname]);
+
+  // 2. ESCUCHAR CUANDO SE CIERRA SESIÓN DESDE EL USER SESSION MENU
+  useEffect(() => {
+    const verificarCambioSesion = () => {
+      const sesion = obtenerSesionUsuario();
+      // Si el menú borró las llaves de autenticación, lo mandamos al Home de inmediato
+      if (!sesion.estaLogeado) {
+        navigate("/", { replace: true });
+      }
+    };
+
+    // Escucha cambios hechos desde otras pestañas o componentes
+    window.addEventListener("storage", verificarCambioSesion);
+    
+    // Sobrescribimos temporalmente la mutación local para que funcione en la misma pestaña
+    const intervalo = setInterval(verificarCambioSesion, 500);
+
+    return () => {
+      window.removeEventListener("storage", verificarCambioSesion);
+      clearInterval(intervalo);
+    };
+  }, [navigate]);
 
   async function cargarConfiguracion() {
     try {
@@ -135,14 +156,12 @@ export default function CarritoPage() {
   async function cargarCarrito() {
     try {
       setLoading(true);
-
       const carrito = await obtenerOCrearCarritoActivo();
       const lineas = await listarLineasPorCarrito(carrito.idCarrito);
 
       const detalles = await Promise.all(
         lineas.map(async (linea) => {
           const variante = await obtenerVariantePorId(linea.idVariante);
-
           let reglasDescuento: ReglaDescuentoDTO[] = [];
 
           try {
@@ -182,11 +201,9 @@ export default function CarritoPage() {
 
   function obtenerPorcentajeDescuento(item: ItemCarrito) {
     const cantidad = item.linea.cantidad;
-
     const regla = item.reglasDescuento.find(
       (r) => cantidad >= r.rangoMinimo && cantidad <= r.rangoMaximo
     );
-
     return regla ? regla.porcentaje : 0;
   }
 
@@ -197,7 +214,6 @@ export default function CarritoPage() {
   function calcularDescuentoItem(item: ItemCarrito) {
     const subtotal = calcularSubtotalSinDescuento(item);
     const porcentaje = obtenerPorcentajeDescuento(item);
-
     return subtotal * (porcentaje / 100);
   }
 
@@ -216,6 +232,7 @@ export default function CarritoPage() {
 
     try {
       await actualizarLineaCarrito(item.linea.idLineaCarrito, {
+        shadowOpacity: 0,
         cantidad: nuevaCantidad,
         precioUnitario: item.linea.precioUnitario,
         subtotal: nuevoSubtotal,
@@ -228,7 +245,6 @@ export default function CarritoPage() {
           if (actual.linea.idLineaCarrito !== item.linea.idLineaCarrito) {
             return actual;
           }
-
           return {
             ...actual,
             linea: {
@@ -255,12 +271,10 @@ export default function CarritoPage() {
             : actual
         )
       );
-
       return;
     }
 
     let nuevaCantidad = parseInt(valor, 10);
-
     if (isNaN(nuevaCantidad)) return;
 
     if (nuevaCantidad > stockDisponible) {
@@ -279,7 +293,6 @@ export default function CarritoPage() {
   async function eliminarItem(item: ItemCarrito) {
     try {
       await eliminarLineaCarrito(item.linea.idLineaCarrito);
-
       setItems((prev) =>
         prev.filter((x) => x.linea.idLineaCarrito !== item.linea.idLineaCarrito)
       );
@@ -311,17 +324,13 @@ export default function CarritoPage() {
   const puedeCotizar =
     configuracion && totalUnidades >= configuracion.stockMinimoCotizacion;
 
-
-
   async function generarFactura() {
     const sesion = obtenerSesionUsuario();
 
     if (!sesion.estaLogeado) {
       navigate("/login", {
         replace: false,
-        state: {
-          from: location.pathname,
-        },
+        state: { from: location.pathname },
       });
       return;
     }
@@ -367,9 +376,7 @@ export default function CarritoPage() {
 
       navigate("/pedidos", {
         replace: true,
-        state: {
-          pedidoGenerado: pedido.idPedido,
-        },
+        state: { pedidoGenerado: pedido.idPedido },
       });
     } catch (error) {
       const message =
@@ -387,9 +394,7 @@ export default function CarritoPage() {
         limpiarSesionLocal();
         navigate("/login", {
           replace: false,
-          state: {
-            from: location.pathname,
-          },
+          state: { from: location.pathname },
         });
         return;
       }
@@ -410,10 +415,8 @@ export default function CarritoPage() {
 
   return (
     <div className="min-h-screen bg-[#f7fafc]">
-      
       <main className="mx-auto max-w-7xl px-6 py-10">
         <h1 className="text-5xl font-extrabold text-slate-900">Tu Carrito</h1>
-
         <p className="mt-2 text-slate-500">
           {items.length} artículo(s) en tu carrito
         </p>
@@ -444,15 +447,12 @@ export default function CarritoPage() {
                           <h2 className="text-2xl font-bold">
                             {item.variante.producto.nombre}
                           </h2>
-
                           <p className="mt-1 text-sm text-slate-500">
                             COLOR: {obtenerNombreColor(item.variante.color)}
                           </p>
-
                           <p className="text-sm text-slate-500">
                             TALLA: {item.variante.talla}
                           </p>
-
                           {porcentajeDesc > 0 && (
                             <span className="mt-2 inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
                               Llevas {item.linea.cantidad} u. (-{porcentajeDesc}%)
@@ -474,10 +474,7 @@ export default function CarritoPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              void cambiarCantidad(
-                                item,
-                                item.linea.cantidad - 1
-                              )
+                              void cambiarCantidad(item, item.linea.cantidad - 1)
                             }
                             disabled={item.linea.cantidad <= 1}
                             className="p-1 text-slate-500 hover:text-[#087f99] disabled:opacity-30"
@@ -487,11 +484,7 @@ export default function CarritoPage() {
 
                           <input
                             type="number"
-                            value={
-                              item.linea.cantidad === 0
-                                ? ""
-                                : item.linea.cantidad
-                            }
+                            value={item.linea.cantidad === 0 ? "" : item.linea.cantidad}
                             onChange={(event) =>
                               manejarCambioInput(item, event.target.value)
                             }
@@ -504,14 +497,9 @@ export default function CarritoPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              void cambiarCantidad(
-                                item,
-                                item.linea.cantidad + 1
-                              )
+                              void cambiarCantidad(item, item.linea.cantidad + 1)
                             }
-                            disabled={
-                              item.linea.cantidad >= stockReal(item.variante)
-                            }
+                            disabled={item.linea.cantidad >= stockReal(item.variante)}
                             className="p-1 text-slate-500 hover:text-[#087f99] disabled:opacity-30"
                           >
                             <Plus size={15} />
@@ -524,11 +512,9 @@ export default function CarritoPage() {
                               {formatearPrecio(subtotalItemSinDesc)}
                             </p>
                           )}
-
                           <p className="text-3xl font-bold">
                             {formatearPrecio(subtotalItemFinal)}
                           </p>
-
                           {rebajaItem > 0 && (
                             <p className="text-xs font-semibold text-emerald-600">
                               Ahorras {formatearPrecio(rebajaItem)}
@@ -545,7 +531,6 @@ export default function CarritoPage() {
             {items.length === 0 && (
               <div className="rounded-2xl bg-white p-10 text-center">
                 <p className="text-lg font-semibold">Tu carrito está vacío</p>
-
                 <Link to="/" className="mt-4 inline-block text-[#087f99]">
                   Ir al catálogo
                 </Link>
@@ -555,7 +540,6 @@ export default function CarritoPage() {
 
           <aside className="h-fit rounded-2xl bg-[#d7edf2] p-6">
             <h2 className="text-3xl font-bold">Resumen de Compra</h2>
-
             <div className="mt-8 space-y-4">
               <div className="flex justify-between">
                 <span>Subtotal base</span>
@@ -592,10 +576,11 @@ export default function CarritoPage() {
 
               {mensajeFactura && (
                 <p
-                  className={`text-sm font-bold ${mensajeFactura.includes("correctamente")
+                  className={`text-sm font-bold ${
+                    mensajeFactura.includes("correctamente")
                       ? "text-emerald-600"
                       : "text-red-600"
-                    }`}
+                  }`}
                 >
                   {mensajeFactura}
                 </p>
@@ -605,6 +590,7 @@ export default function CarritoPage() {
         </div>
       </main>
 
+      {/* MODAL DE COTIZACIÓN */}
       {puedeCotizar && mostrarPopupCotizacion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
           <div className="relative w-full max-w-[560px] rounded-[32px] bg-white p-10 text-center shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)]">
@@ -617,18 +603,13 @@ export default function CarritoPage() {
             </button>
 
             <div className="mx-auto mt-6 flex justify-center">
-              <img
-                src={logoMeowtfit}
-                alt="Meowtfit Logo"
-                className="h-32 object-contain"
-              />
+              <img src={logoMeowtfit} alt="Meowtfit Logo" className="h-32 object-contain" />
             </div>
 
             <div className="mt-8 space-y-4 px-4 text-slate-700">
               <p className="text-2xl font-medium leading-tight text-slate-800">
                 Al parecer intentas realizar una gran compra.
               </p>
-
               <p className="text-xl font-normal leading-relaxed text-slate-500">
                 Tu pedido será enviado a nuestros comerciantes para que puedan
                 generarte una cotización y podamos ofrecerte un precio cómodo.

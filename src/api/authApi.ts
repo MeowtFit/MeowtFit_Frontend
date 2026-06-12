@@ -12,6 +12,21 @@ export type LoginResponse = {
   rol: RolUsuario;
 };
 
+export type RegistroClienteRequest = {
+  nombres: string;
+  correo: string;
+  contrasena: string;
+  telefono: string;
+  rol: "CLIENTE";
+};
+
+export type RegistroClienteResponse = {
+  idUsuario: number;
+  nombres: string;
+  correo: string;
+  rol: RolUsuario;
+};
+
 export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
@@ -36,4 +51,28 @@ export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   }
 
   return response.json() as Promise<LoginResponse>;
+}
+
+export async function registrarUsuario(data: RegistroClienteRequest): Promise<RegistroClienteResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo completar el registro.";
+    try {
+      const errorData = await response.json();
+      // Mapea el mensaje que retorne tu validación DTO de Spring Boot
+      message = errorData.mensaje ?? errorData.error ?? errorData.message ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<RegistroClienteResponse>;
 }
