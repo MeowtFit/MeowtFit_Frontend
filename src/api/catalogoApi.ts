@@ -80,6 +80,22 @@ export type VarianteProductoDetalle = {
   producto: ProductoResumen;
 };
 
+export interface ReglaDescuentoDTO {
+  idRegla: number;
+  rangoMinimo: number;
+  rangoMaximo: number;
+  porcentaje: number;
+  idProducto: number;
+}
+
+export async function listarReglasPorProducto(idProducto: number): Promise<ReglaDescuentoDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/api/reglas/producto/${idProducto}`);
+  if (!response.ok) {
+    throw new Error("Error al obtener las reglas de descuento");
+  }
+  return response.json();
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
