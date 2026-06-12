@@ -9,7 +9,6 @@ import {
   crearProducto,
   type Categoria,
   type Color,
-  type VarianteProducto,
   type ReglaDescuentoRequestDTO,
   type ProductoRequestDTO,
 } from "@/api/productosApi";
@@ -259,7 +258,7 @@ export default function ProductoNuevoPage() {
 
           {/* Información Básica */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Información Básica</h2>
+            <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">1. Información Básica</h2>
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Nombre del Producto *</label>
@@ -314,7 +313,7 @@ export default function ProductoNuevoPage() {
           {/* Tallas y Variantes */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-6">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-800">Tallas y Variantes Disponibles </h2>
+              <h2 className="text-sm font-semibold text-zinc-800">3. Tallas y Variantes Disponibles </h2>
               <p className="text-xs text-zinc-400 mt-0.5">Selecciona una talla, el color y define el stock inicial. (Min. 1 variante)*</p>
             </div>
 
@@ -441,7 +440,7 @@ export default function ProductoNuevoPage() {
 
           {/* Precio y Categoría */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Precio y Categoría</h2>
+            <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">2. Precio y Categoría</h2>
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Precio Base (S/.) *</label>
@@ -484,7 +483,7 @@ export default function ProductoNuevoPage() {
           {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Reglas de Descuento</h2>
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">4. Reglas de Descuento</h2>
               <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
                 Establece escalas de descuento según la cantidad total de unidades compradas.
               </p>
