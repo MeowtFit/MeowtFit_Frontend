@@ -18,7 +18,6 @@ import {
   type ReglaDescuentoRequestDTO
 } from "@/api/productosApi";
 
-// Diccionario de tallas dinámicas
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
   'vestidos': ['S', 'M', 'L', 'XL'],
@@ -31,13 +30,11 @@ export default function ProductoEditarPage() {
   const navigate = useNavigate();
   const { id, idColor } = useParams<{ id: string; idColor: string }>();
 
-  // Estados de carga y error
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados del Formulario del Producto
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [precioBase, setPrecioBase] = useState<string>("");
@@ -45,15 +42,14 @@ export default function ProductoEditarPage() {
   const [imagenUrl, setImagenUrl] = useState("");
   const [estado, setEstado] = useState<"ACTIVO" | "INACTIVO">("ACTIVO");
 
-  // Estado de Variantes (Globales del producto)
   const [variantes, setVariantes] = useState<VarianteProducto[]>([]);
   const [idsVariantesEliminadas, setIdsVariantesEliminadas] = useState<number[]>([]);
-  // Estados para la creación de una nueva variante
+
   const [nuevaTalla, setNuevaTalla] = useState("");
   const [nuevoStock, setNuevoStock] = useState<number>(0);
   const [creandoVariante, setCreandoVariante] = useState(false);
   const [errorVariante, setErrorVariante] = useState<string | null>(null);
-  // Estados para Reglas de Descuento
+
   const [reglasDescuento, setReglasDescuento] = useState<ReglaDescuentoRequestDTO[]>([]);
   const [rangoMinimoInput, setRangoMinimoInput] = useState("");
   const [rangoMaximoInput, setRangoMaximoInput] = useState("");
@@ -67,13 +63,11 @@ export default function ProductoEditarPage() {
   };
 
   const preventInvalidCharsStock = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Para stock tampoco permitimos puntos o comas decimales
     if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
       e.preventDefault();
     }
   };
 
-  // 1. CARGAR DATOS INICIALES
   useEffect(() => {
     const cargarDatos = async () => {
       if (!id || !idColor) return;
@@ -82,29 +76,24 @@ export default function ProductoEditarPage() {
         setCargando(true);
         setError(null);
 
-        // A. Cargar Categorías
         const dataCategorias = await listarCategorias();
         setCategorias(dataCategorias);
 
-        // B. Cargar Producto Base
         const dataProducto = await buscarProductoPorId(Number(id));
         setNombre(dataProducto.nombre || "");
 
-        // Evitar el error de undefined en precioBase
         setPrecioBase(dataProducto.precioBase !== undefined && dataProducto.precioBase !== null
           ? dataProducto.precioBase.toString()
           : ""
         );
         setDescripcion(dataProducto.descripcion || "");
 
-        // Extraer categoría de forma segura
         const categoriaId = dataProducto.idCategoria ?? dataProducto.categoria?.idCategoria;
         setIdCategoria(categoriaId ? categoriaId.toString() : "");
 
         setImagenUrl(dataProducto.imagenUrl || "");
         setEstado(dataProducto.estado || "ACTIVO");
 
-        // C. Cargar Variantes
         try {
           const dataVariantes = await obtenerVariantesPorProducto(Number(id));
           if (dataVariantes && dataVariantes.length > 0) {
@@ -114,7 +103,6 @@ export default function ProductoEditarPage() {
           console.warn("No se pudieron cargar las variantes:", errVar);
         }
 
-        // D. Cargar Reglas de Descuento
         try {
           const dataReglas = await obtenerReglasPorProducto(Number(id));
           if (dataReglas && dataReglas.length > 0) {
@@ -142,13 +130,11 @@ export default function ProductoEditarPage() {
   const variantesFiltradas = variantes.filter((v) => v.idColor === Number(idColor));
   const colorActual = variantesFiltradas.length > 0 ? variantesFiltradas[0].color : null;
 
-  // Obtener qué tallas mostrar según categoría del producto
   const categoriaActual = categorias.find(c => c.idCategoria === Number(idCategoria));
   const tallasDisponibles = categoriaActual
     ? (Object.entries(OPCIONES_TALLAS).find(([key]) => categoriaActual.nombre.toLowerCase().includes(key))?.[1] || ['S', 'M', 'L', 'XL'])
     : ['S', 'M', 'L', 'XL'];
 
-  // 2. MANEJO DE VARIANTES (STOCK)
   const handleStockChange = (idVariante: number, nuevoStock: number) => {
     setVariantes((prev) =>
       prev.map((v) =>
@@ -176,7 +162,6 @@ export default function ProductoEditarPage() {
       return;
     }
 
-    // Validar si la talla ya existe para este color
     const existe = variantes.some(
       (v) => v.talla === nuevaTalla && v.idColor === Number(idColor)
     );
@@ -185,7 +170,6 @@ export default function ProductoEditarPage() {
       return;
     }
 
-    // Generar un ID temporal negativo único para evitar duplicidad de key en React
     const tempIds = variantes.map((v) => v.idVariante).filter((id) => id < 0);
     const nuevoIdTemp = tempIds.length > 0 ? Math.min(...tempIds) - 1 : -1;
 
@@ -205,7 +189,6 @@ export default function ProductoEditarPage() {
     setCreandoVariante(false);
   };
 
-  // 3. MANEJO DE REGLAS DE DESCUENTO
   const handleAgregarRegla = () => {
     setErrorRegla(null);
 
@@ -254,7 +237,6 @@ export default function ProductoEditarPage() {
     setErrorRegla(null);
   };
 
-  // 4. GUARDAR CAMBIOS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -267,7 +249,6 @@ export default function ProductoEditarPage() {
     try {
       setGuardando(true);
 
-      // A. Actualizar datos generales del producto
       const productoDto: ProductoRequestDTO = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || undefined,
@@ -283,18 +264,15 @@ export default function ProductoEditarPage() {
       };
       await editarProducto(Number(id), productoDto);
 
-      // B. Eliminar variantes que se marcaron para borrar
       if (idsVariantesEliminadas.length > 0) {
         await Promise.all(
           idsVariantesEliminadas.map((idVar) => eliminarVarianteProducto(idVar))
         );
       }
 
-      // C. Actualizar o crear variantes mostradas en pantalla
       await Promise.all(
         variantesFiltradas.map((v) => {
           if (v.idVariante > 0) {
-            // Variante existente: actualizar stock
             return editarVarianteProducto(v.idVariante, {
               talla: v.talla,
               idColor: v.idColor,
@@ -303,7 +281,6 @@ export default function ProductoEditarPage() {
               idProducto: Number(id)
             });
           } else {
-            // Nueva variante: crearla
             return crearVarianteProducto({
               talla: v.talla,
               idColor: v.idColor,
@@ -335,8 +312,6 @@ export default function ProductoEditarPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-
-      {/* Cabecera / Navbar superior de acción */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="outline" size="icon" className="h-9 w-9 border-zinc-200 rounded-lg">
@@ -360,7 +335,6 @@ export default function ProductoEditarPage() {
         </Button>
       </div>
 
-      {/* Mensaje de Error global */}
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm p-4 rounded-xl flex items-center gap-2">
           <AlertCircle size={16} />
@@ -368,13 +342,12 @@ export default function ProductoEditarPage() {
         </div>
       )}
 
-      {/* Grid de Formulario */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* COLUMNA IZQUIERDA Y CENTRAL: Detalles del producto y Variantes (Ocupa 2/3) */}
+        {/* COLUMNA IZQUIERDA */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Card: Información Básica */}
+          {/* Información Básica */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Información Básica</h2>
 
@@ -399,7 +372,7 @@ export default function ProductoEditarPage() {
               />
             </div>
 
-            {/* Card: Multimedia / Imagen */}
+            {/* Imagen */}
             <div className="space-y-1 mt-2">
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Imagen del Producto</h2>
               <div className="space-y-1">
@@ -413,7 +386,6 @@ export default function ProductoEditarPage() {
                 />
               </div>
 
-              {/* Preview de la imagen */}
               {imagenUrl.trim() && (
                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden mt-3">
                   <img
@@ -429,12 +401,8 @@ export default function ProductoEditarPage() {
             </div>
           </div>
 
-          {/* ========================================== */}
-          {/* SECCIÓN DE TALLAS Y STOCK DEL COLOR ACTUAL */}
-          {/* ========================================== */}
+          {/* Color y tallas*/}
           <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
-
-            {/* Cabecera con el Color */}
             <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Layers className="text-zinc-400" size={20} />
@@ -542,13 +510,10 @@ export default function ProductoEditarPage() {
                   <tbody className="divide-y divide-zinc-100">
                     {variantesFiltradas.map((variante) => (
                       <tr key={variante.idVariante} className="hover:bg-zinc-50/50 transition-colors">
-
-                        {/* Columna: Nombre de la Talla */}
                         <td className="px-5 py-3.5 font-semibold text-zinc-800">
                           {variante.talla || "Única"}
                         </td>
 
-                        {/* Columna: Input de Stock Disponible */}
                         <td className="px-5 py-3.5">
                           <div className="flex justify-center items-center gap-2">
                             <Input
@@ -563,14 +528,11 @@ export default function ProductoEditarPage() {
                           </div>
                         </td>
 
-                        {/* Columna: Texto de Stock Reservado */}
                         <td className="px-5 py-3.5 text-center">
                           <span className="text-zinc-600 font-mono font-medium">
                             {variante.stockReservado} und.
                           </span>
                         </td>
-
-                        {/* Columna: Botón Eliminar */}
                         <td className="px-5 py-3.5 text-center">
                           <Button
                             type="button"
@@ -592,9 +554,9 @@ export default function ProductoEditarPage() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: Precio, Categorías y Reglas de Descuento (Ocupa 1/3) */}
+        {/* COLUMNA DERECHA */}
         <div className="space-y-6">
-          {/* Card: Precio y Categoría */}
+          {/* Precio y Categoría */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Precio y Categoría</h2>
             <div className="space-y-1">
@@ -641,7 +603,7 @@ export default function ProductoEditarPage() {
             </div>
           </div>
 
-          {/* CARD - REGLAS DE DESCUENTO POR VOLUMEN */}
+          {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Reglas de Descuento</h2>
@@ -649,7 +611,7 @@ export default function ProductoEditarPage() {
                 Establece escalas de descuento según la cantidad total de unidades compradas.
               </p>
             </div>
-            {/* Inputs de ingreso rápidos */}
+
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-3 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -705,7 +667,6 @@ export default function ProductoEditarPage() {
                 </div>
               </div>
 
-              {/* Mensaje de error de reglas embebido en la tarjeta */}
               {errorRegla && (
                 <div className="flex items-center gap-2 text-[11px] text-rose-600 font-medium bg-rose-50 border border-rose-100 p-2 rounded">
                   <AlertCircle size={13} className="shrink-0" />
@@ -724,7 +685,7 @@ export default function ProductoEditarPage() {
               </Button>
             </div>
 
-            {/* Tabla resumen de reglas añadidas */}
+            {/* Tabla de reglas añadidas */}
             <div className="border border-zinc-100 rounded-lg overflow-hidden text-xs">
               <div className="bg-zinc-50 border-b border-zinc-100 p-2 text-[10px] font-semibold text-zinc-400 tracking-wider">
                 REGLAS ACTIVAS CONFIGURADAS

@@ -14,7 +14,6 @@ import {
   type ProductoRequestDTO,
 } from "@/api/productosApi";
 
-// Diccionario de tallas dinámicas
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
   'vestidos': ['S', 'M', 'L', 'XL'],
@@ -25,29 +24,26 @@ const OPCIONES_TALLAS: Record<string, string[]> = {
 
 export default function ProductoNuevoPage() {
   const navigate = useNavigate();
-  // Estados de datos remotos
+
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [colores, setColores] = useState<Color[]>([]);
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados del Formulario Principal
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [precioBase, setPrecioBase] = useState("");
   const [idCategoria, setIdCategoria] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
 
-  // Estado para la gestión de variantes dinámicas
   const [variantes, setVariantes] = useState<Array<{ talla: string; idColor: number; colorNombre: string; stockDisponible: number }>>([]);
 
-  // Variables para agregar una nueva variante individualmente
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [idColorSeleccionado, setIdColorSeleccionado] = useState("");
   const [stockInput, setStockInput] = useState("0");
   const [errorVariante, setErrorVariante] = useState<string | null>(null);
-  //REGLAS DE DESCUENTO
+
   const [reglasDescuento, setReglasDescuento] = useState<ReglaDescuentoRequestDTO[]>([]);
   const [rangoMinInput, setRangoMinInput] = useState("");
   const [rangoMaxInput, setRangoMaxInput] = useState("");
@@ -61,12 +57,11 @@ export default function ProductoNuevoPage() {
   };
 
   const preventInvalidCharsStock = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Para stock tampoco permitimos puntos o comas decimales
     if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
       e.preventDefault();
     }
   };
-  // 1. Cargar categorías y colores al montar el componente
+
   useEffect(() => {
     Promise.all([listarCategorias(), listarColores()])
       .then(([dataCategorias, dataColores]) => {
@@ -81,13 +76,11 @@ export default function ProductoNuevoPage() {
       });
   }, []);
 
-  // 2. Obtener qué tallas mostrar en los botones/select según la categoría elegida
   const categoriaActual = categorias.find(c => c.idCategoria === Number(idCategoria));
   const tallasDisponibles = categoriaActual
     ? (Object.entries(OPCIONES_TALLAS).find(([key]) => categoriaActual.nombre.toLowerCase().includes(key))?.[1] || ['S', 'M', 'L', 'XL'])
-    : ['S', 'M', 'L', 'XL']; // Tallas por defecto si no hay categoría seleccionada
+    : ['S', 'M', 'L', 'XL'];
 
-  // 3. Agregar una variante a la tabla temporal
   const handleAgregarVariante = () => {
     setErrorVariante(null);
 
@@ -106,7 +99,6 @@ export default function ProductoNuevoPage() {
       return;
     }
 
-    // Evitar duplicados exactos de Talla + Color
     const existe = variantes.some(v => v.talla === tallaSeleccionada && v.idColor === colorObj.idColor);
     if (existe) {
       setErrorVariante("Esta combinación de talla y color ya está agregada.");
@@ -126,7 +118,6 @@ export default function ProductoNuevoPage() {
     setStockInput("0");
   };
 
-  // 4. Eliminar variante de la lista temporal
   const handleEliminarVariante = (index: number) => {
     setVariantes(variantes.filter((_, i) => i !== index));
     setErrorVariante(null);
@@ -159,15 +150,13 @@ export default function ProductoNuevoPage() {
       return;
     }
 
-    // Validación opcional: verificar solapamiento básico de rangos
     const solapado = reglasDescuento.some(r =>
       (inicio >= r.rangoMinimo && inicio <= r.rangoMaximo) ||
       (fin >= r.rangoMinimo && fin <= r.rangoMaximo)
     );
     if (solapado) {
-      if (!confirm("El rango ingresado parece cruzarse con una regla existente. ¿Deseas agregarlo de todas formas?")) {
-        return;
-      }
+      setErrorRegla("El rango de esta regla se cruza con el de otra ya existente.");
+      return;
     }
 
     setReglasDescuento([
@@ -184,12 +173,10 @@ export default function ProductoNuevoPage() {
     setErrorRegla(null);
   };
 
-  // 5. Enviar el formulario completo al Backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validaciones básicas antes de enviar
     if (!nombre.trim() || !precioBase || !idCategoria) {
       setError("Por favor, completa los campos obligatorios (*).");
       return;
@@ -209,17 +196,13 @@ export default function ProductoNuevoPage() {
         imagenUrl: imagenUrl.trim() || undefined,
         idCategoria: Number(idCategoria),
 
-        // Mapeamos las variantes al formato VarianteProductoRequestDTO
         variantes: variantes.map(v => ({
           talla: v.talla,
           idColor: v.idColor,
           stockDisponible: v.stockDisponible,
           stockReservado: 0
-          // Nota: No enviamos "idProducto" porque en el frontend aún no existe. 
-          // El backend se encargará de asignarlo automáticamente.
         })),
 
-        // Mapeamos las reglas al formato ReglaDescuentoRequestDTO
         reglasDescuento: reglasDescuento.map(r => ({
           rangoMinimo: r.rangoMinimo,
           rangoMaximo: r.rangoMaximo,
@@ -227,7 +210,6 @@ export default function ProductoNuevoPage() {
         }))
       };
 
-      // Enviamos todo el paquete en una sola petición
       await crearProducto(productoRequest);
       navigate("/admin/inventario");
 
@@ -241,8 +223,6 @@ export default function ProductoNuevoPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-
-      {/* Cabecera / Navbar superior de acción */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="outline" size="icon" className="h-9 w-9 border-zinc-200 rounded-lg">
@@ -266,20 +246,18 @@ export default function ProductoNuevoPage() {
         </Button>
       </div>
 
-      {/* Mensaje de Error global */}
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm p-4 rounded-xl">
           {error}
         </div>
       )}
 
-      {/* Grid de Formulario */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* COLUMNA IZQUIERDA Y CENTRAL: Detalles del producto y Variantes (Ocupa 2/3) */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* COLUMNA IZQUIERDA */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Card: Información Básica */}
+          {/* Información Básica */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Información Básica</h2>
 
@@ -303,7 +281,7 @@ export default function ProductoNuevoPage() {
                 className="w-full min-h-[120px] rounded-md border border-zinc-200 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#087f99] focus-visible:ring-offset-0 text-zinc-800 placeholder:text-zinc-400"
               />
             </div>
-            {/* Card: Multimedia / Imagen */}
+            {/* Imagen */}
             <div className="space-y-1">
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Imagen del Producto</h2>
 
@@ -318,7 +296,6 @@ export default function ProductoNuevoPage() {
                 />
               </div>
 
-              {/* Preview de la imagen si existe la URL */}
               {imagenUrl.trim() && (
                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden">
                   <img
@@ -334,15 +311,14 @@ export default function ProductoNuevoPage() {
             </div>
           </div>
 
-          {/* Card: Variantes (Tallas y Colores) */}
+          {/* Tallas y Variantes */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-6">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800">Tallas y Variantes Disponibles </h2>
               <p className="text-xs text-zinc-400 mt-0.5">Selecciona una talla, el color y define el stock inicial. (Min. 1 variante)*</p>
             </div>
-            {/* Sub-formulario para agregar una variante temporal */}
-            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
 
+            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">1. Talla</label>
                 <select
@@ -460,10 +436,10 @@ export default function ProductoNuevoPage() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: Organización, Precios y Multimedia (Ocupa 1/3) */}
+        {/* COLUMNA DERECHA */}
         <div className="space-y-6">
 
-          {/* Card: Precio y Categoría */}
+          {/* Precio y Categoría */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Precio y Categoría</h2>
 
@@ -505,7 +481,7 @@ export default function ProductoNuevoPage() {
             </div>
           </div>
 
-          {/* NUEVO: CARD - REGLAS DE DESCUENTO POR VOLUMEN            */}
+          {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Reglas de Descuento</h2>
@@ -514,7 +490,6 @@ export default function ProductoNuevoPage() {
               </p>
             </div>
 
-            {/* Inputs de ingreso rápidos */}
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-3 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -578,7 +553,7 @@ export default function ProductoNuevoPage() {
               </Button>
             </div>
 
-            {/* Tabla resumen de reglas añadidas */}
+            {/* Tabla de reglas añadidas */}
             <div className="border border-zinc-100 rounded-lg overflow-hidden text-xs">
               <div className="bg-zinc-50 border-b border-zinc-100 p-2 text-[10px] font-semibold text-zinc-400 tracking-wider">
                 REGLAS ACTIVAS CONFIGURADAS

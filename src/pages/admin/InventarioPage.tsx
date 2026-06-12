@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, ChevronLeft, ChevronRight, Eye, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Eye, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   filtrarProductos,
   listarCategorias,
+  eliminarVarianteProducto,
   type Producto,
   type Categoria,
   type EstadoProducto
 } from "@/api/productosApi";
 
-// Función auxiliar para los colores de las etiquetas de estado
 function estadoClass(estado: EstadoProducto) {
   switch (estado) {
     case "ACTIVO":
@@ -29,46 +29,57 @@ export default function InventarioPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Estados para Filtros y Búsqueda
+
   const [busqueda, setBusqueda] = useState("");
   const [idCategoriaSeleccionada, setIdCategoriaSeleccionada] = useState<number | undefined>(undefined);
-  // Estados de Paginación nativa del Backend (Spring Boot usa páginas base 0)
-  const [paginaActual, setPaginaActual] = useState(1); // Para la UI (1, 2, 3...)
+
+  const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [totalElementos, setTotalElementos] = useState(0);
+  const [modalEliminar, setModalEliminar] = useState<{
+    mostrar: boolean;
+    tipo: "ADVERTENCIA" | "CONFIRMACION";
+    razonAdvertencia: "STOCK_RESERVADO" | "UNICO_COLOR" | null;
+    fila: any | null;
+    stockReservadoTotal: number;
+  }>({
+    mostrar: false,
+    tipo: "CONFIRMACION",
+    razonAdvertencia: null,
+    fila: null,
+    stockReservadoTotal: 0
+  });
   const productosXPagina = 5;
 
-  //Cargar categorias
   useEffect(() => {
     listarCategorias()
       .then((data) => setCategorias(data))
       .catch((err) => console.error("Error al cargar categorías:", err));
   }, []);
 
-  // 2. Cargar productos de forma dinámica desde Spring Boot
+  const fetchProductos = async () => {
+    setCargando(true);
+    setError(null);
+    try {
+      const respuesta = await filtrarProductos({
+        nombre: busqueda || undefined,
+        idCategoria: idCategoriaSeleccionada,
+        page: paginaActual - 1,
+        size: productosXPagina,
+        sort: "idProducto,desc"
+      });
+
+      setProductos(respuesta.content);
+      setTotalPaginas(respuesta.totalPages);
+      setTotalElementos(respuesta.totalElements);
+    } catch (err: any) {
+      setError(err.message || "Error al conectar con el servidor");
+    } finally {
+      setCargando(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProductos = async () => {
-      setCargando(true);
-      setError(null);
-      try {
-        const respuesta = await filtrarProductos({
-          nombre: busqueda || undefined,
-          idCategoria: idCategoriaSeleccionada,
-          page: paginaActual - 1, // Restamos 1 porque Spring Boot arranca en página 0
-          size: productosXPagina,
-          sort: "idProducto,desc" // Muestra los últimos creados primero
-        });
-
-        setProductos(respuesta.content);
-        setTotalPaginas(respuesta.totalPages);
-        setTotalElementos(respuesta.totalElements);
-      } catch (err: any) {
-        setError(err.message || "Error al conectar con el servidor");
-      } finally {
-        setCargando(false);
-      }
-    };
-
     const delayDebounce = setTimeout(() => {
       fetchProductos();
     }, 300);
@@ -76,17 +87,68 @@ export default function InventarioPage() {
     return () => clearTimeout(delayDebounce);
   }, [busqueda, idCategoriaSeleccionada, paginaActual]);
 
-  // Si cambia el filtro o la búsqueda, reiniciamos siempre a la página 1
   useEffect(() => {
     setPaginaActual(1);
   }, [busqueda, idCategoriaSeleccionada]);
 
-  // Transforma la lista de productos en líneas de inventario por color para la tabla
+  const handleEliminarColor = (fila: any) => {
+    setError(null);
+    const coloresDelProducto = new Set((fila.variantes || []).map((v: any) => v.idColor).filter(Boolean));
+    if (coloresDelProducto.size <= 1) {
+      setModalEliminar({
+        mostrar: true,
+        tipo: "ADVERTENCIA",
+        razonAdvertencia: "UNICO_COLOR",
+        fila,
+        stockReservadoTotal: 0
+      });
+      return;
+    }
+
+    const stockReservadoTotal = fila.tallasAsociadas.reduce((acc: number, v: any) => acc + (v.stockReservado || 0), 0);
+    if (stockReservadoTotal > 0) {
+      setModalEliminar({
+        mostrar: true,
+        tipo: "ADVERTENCIA",
+        razonAdvertencia: "STOCK_RESERVADO",
+        fila,
+        stockReservadoTotal
+      });
+    } else {
+      setModalEliminar({
+        mostrar: true,
+        tipo: "CONFIRMACION",
+        razonAdvertencia: null,
+        fila,
+        stockReservadoTotal: 0
+      });
+    }
+  };
+
+  const ejecutarEliminacionColor = async () => {
+    const { fila } = modalEliminar;
+    if (!fila) return;
+
+    setModalEliminar({ ...modalEliminar, mostrar: false });
+
+    try {
+      setCargando(true);
+      await Promise.all(
+        fila.tallasAsociadas.map((v: any) => eliminarVarianteProducto(v.idVariante))
+      );
+      await fetchProductos();
+    } catch (err: any) {
+      console.error("Error al eliminar variante:", err);
+      setError(err.message || "Ocurrió un error al intentar eliminar la variante.");
+    } finally {
+      setCargando(false);
+    }
+  };
+
   const filasInventario = useMemo(() => {
     const filas: any[] = [];
 
     productos.forEach((prod) => {
-      // Agrupamos las variantes de este producto por su nombre de color
       const variantesPorColor: { [color: string]: typeof prod.variantes } = {};
 
       if (prod.variantes && prod.variantes.length > 0) {
@@ -102,7 +164,6 @@ export default function InventarioPage() {
         variantesPorColor["Sin Variantes"] = [];
       }
 
-      // Creamos una fila independiente en la tabla por cada combinación de color
       Object.entries(variantesPorColor).forEach(([color, listaVariantes]) => {
         const stockTotalColor = listaVariantes!.reduce((acc, v) => acc + v.stockDisponible, 0);
         const idColorFila = listaVariantes && listaVariantes.length > 0 ? listaVariantes[0].idColor : null;
@@ -110,7 +171,7 @@ export default function InventarioPage() {
           ...prod,
           colorExclusivo: color,
           idColor: idColorFila,
-          tallasAsociadas: listaVariantes, // Arreglo de variantes con sus tallas y stocks
+          tallasAsociadas: listaVariantes,
           stockTotalColor,
         });
       });
@@ -121,8 +182,6 @@ export default function InventarioPage() {
 
   return (
     <section className="min-h-screen bg-[#f7f5f2] flex flex-col w-full">
-
-      {/* Topbar superior */}
       <header className="flex h-[72px] items-center justify-between border-b border-zinc-200 bg-white px-8">
         <div className="font-extrabold text-lg tracking-wider text-zinc-800">
           MEOWTFIT
@@ -139,20 +198,15 @@ export default function InventarioPage() {
         </div>
       </header>
 
-      {/* Contenido principal */}
       <main className="flex-1 p-8">
 
-        {/* Cabecera de página */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-zinc-800 mb-1">
             Gestión de inventario
           </h1>
         </div>
 
-        {/* Tarjeta de la Tabla */}
         <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-
-          {/* Opciones de la tabla */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-zinc-100 gap-4">
             <h2 className="text-base font-bold text-zinc-800">
               Inventario de productos
@@ -173,7 +227,7 @@ export default function InventarioPage() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="h-11 px-4 gap-2 border-zinc-200 text-zinc-600 hover:bg-zinc-50">
                     <Filter size={16} />
-                    Filtros
+                    Filtrar
                     {idCategoriaSeleccionada && <span className="w-2 h-2 rounded-full bg-[#087f99]" />}
                   </Button>
                 </PopoverTrigger>
@@ -243,7 +297,6 @@ export default function InventarioPage() {
                 ) : (
                   filasInventario.map((fila, index) => (
                     <tr key={`${fila.idProducto}-${fila.colorExclusivo}-${index}`} className="hover:bg-zinc-50/50 transition-colors">
-                      {/* Imagen */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img
                           src={fila.imagenUrl}
@@ -252,7 +305,6 @@ export default function InventarioPage() {
                         />
                       </td>
 
-                      {/* Producto y Categoría debajo */}
                       <td className="px-6 py-4">
                         <div className="font-semibold text-zinc-900">{fila.nombre}</div>
                         <div className="text-xs text-[#087f99] font-medium mt-0.5">
@@ -260,7 +312,6 @@ export default function InventarioPage() {
                         </div>
                       </td>
 
-                      {/* Color */}
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-700">
                         <div className="flex items-center gap-2">
                           {fila.tallasAsociadas?.[0]?.color?.hexadecimal && (
@@ -273,7 +324,6 @@ export default function InventarioPage() {
                         </div>
                       </td>
 
-                      {/* Tallas y Desglose de Stock */}
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
                           {fila.tallasAsociadas.map((t: any) => (
@@ -296,12 +346,10 @@ export default function InventarioPage() {
                         </div>
                       </td>
 
-                      {/* Precio Base */}
                       <td className="px-6 py-4 whitespace-nowrap font-semibold text-zinc-900">
                         S/ {Number(fila.precioBase).toFixed(2)}
                       </td>
 
-                      {/* Estado */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${estadoClass(fila.estado)}`}>
                           {fila.estado}
@@ -311,9 +359,6 @@ export default function InventarioPage() {
                       {/* Acciones */}
                       <td className="px-6 py-4 whitespace-nowrap text-right text-zinc-400">
                         <div className="flex items-center justify-end gap-3">
-                          <button className="hover:text-zinc-600 transition-colors" title="Ver detalles">
-                            <Eye size={18} />
-                          </button>
                           <button className="hover:text-[#087f99] transition-colors" title="Editar producto">
                             <Link to={`/admin/inventario/${fila.idProducto}/editar/${fila.idColor}`} className="flex items-center gap-1 text-zinc-600 hover:text-[#087f99] transition-colors">
                               <Pencil size={18} />
@@ -324,8 +369,12 @@ export default function InventarioPage() {
                               <Palette size={18} />
                             </Link>
                           </button>
-                          <button className="hover:text-rose-600 transition-colors" title="Eliminar">
-                            <Trash2 size={18} />
+                          <button
+                            onClick={() => handleEliminarColor(fila)}
+                            className="hover:text-[#087f99] transition-colors"
+                            title="Eliminar color y tallas"
+                          >
+                            <Trash2 size={18} className="text-zinc-600 hover:text-[#087f99] transition-colors" />
                           </button>
                         </div>
                       </td>
@@ -373,6 +422,81 @@ export default function InventarioPage() {
           </div>
         </div>
       </main>
+
+      {/* Modal de eliminación*/}
+      {modalEliminar.mostrar && modalEliminar.fila && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm transition-all duration-300 animate-in fade-in">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-6 max-w-md w-full shadow-2xl mx-4 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <span className={`p-2.5 rounded-full ${modalEliminar.tipo === "ADVERTENCIA" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"}`}>
+                <AlertCircle size={24} />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">
+                  {modalEliminar.tipo === "ADVERTENCIA" ? "Acción Bloqueada" : "Confirmar Eliminación"}
+                </h3>
+              </div>
+            </div>
+
+            <div className="text-sm text-zinc-600 leading-relaxed py-2">
+              {modalEliminar.tipo === "ADVERTENCIA" ? (
+                modalEliminar.razonAdvertencia === "UNICO_COLOR" ? (
+                  <span>
+                    No se puede eliminar la variante de color{" "}
+                    <strong className="text-zinc-800 capitalize">"{modalEliminar.fila.colorExclusivo}"</strong>{" "}
+                    del producto <strong className="text-zinc-800">"{modalEliminar.fila.nombre}"</strong> porque es el{" "}
+                    <strong className="text-rose-600">único color registrado</strong> para este producto. Debe existir al menos una variante de color activa.
+                  </span>
+                ) : (
+                  <span>
+                    No se puede eliminar la variante de color{" "}
+                    <strong className="text-zinc-800 capitalize">"{modalEliminar.fila.colorExclusivo}"</strong>{" "}
+                    del producto <strong className="text-zinc-800">"{modalEliminar.fila.nombre}"</strong> porque tiene{" "}
+                    <strong className="text-rose-600">{modalEliminar.stockReservadoTotal} unidades</strong> en stock reservado.
+                  </span>
+                )
+              ) : (
+                <span>
+                  ¿Estás seguro de que deseas eliminar todas las variantes y tallas del color{" "}
+                  <strong className="text-zinc-800 capitalize">"{modalEliminar.fila.colorExclusivo}"</strong>{" "}
+                  del producto <strong className="text-zinc-800">"{modalEliminar.fila.nombre}"</strong>?
+                  <br />
+                  <span className="text-xs text-rose-500 font-semibold mt-2 block">
+                    * Esta acción eliminará todas sus tallas asociadas.
+                  </span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-100">
+              {modalEliminar.tipo === "ADVERTENCIA" ? (
+                <Button
+                  onClick={() => setModalEliminar({ ...modalEliminar, mostrar: false })}
+                  className="bg-[#087f99] hover:bg-[#066a80] text-white px-5 font-semibold"
+                >
+                  Entendido
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setModalEliminar({ ...modalEliminar, mostrar: false })}
+                    className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 font-semibold"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={ejecutarEliminacionColor}
+                    className="bg-rose-600 hover:bg-rose-700 text-white px-5 font-semibold"
+                  >
+                    Eliminar Fila
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

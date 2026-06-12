@@ -31,13 +31,11 @@ export interface Producto {
   descripcion: string | null;
   imagenUrl: string | null;
   idCategoria: number;
-  // Estos campos suelen venir anidados en el DTO de respuesta del backend
   categoria?: Categoria;
   variantes?: VarianteProducto[];
   reglasDescuento?: ReglaDescuento[];
 }
 
-//REGLA DE DESCUENTO
 export interface ReglaDescuento {
   idRegla: number;
   rangoMinimo: number;
@@ -46,7 +44,6 @@ export interface ReglaDescuento {
   idProducto: number;
 }
 
-// Tipo estándar de respuesta para paginación de Spring Boot (Page<T>)
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;
@@ -57,10 +54,6 @@ export interface PageResponse<T> {
   last: boolean;
   empty: boolean;
 }
-
-// ============================================================================
-// 2. REQUEST DTOs (Lo que enviamos para Crear/Editar)
-// ============================================================================
 
 export interface CategoriaRequestDTO {
   nombre: string;
@@ -84,7 +77,7 @@ export interface VarianteProductoRequestDTO {
   stockReservado: number;
   idProducto?: number;
 }
-//REGLA DE DESCUENTO DTO
+
 export interface ReglaDescuentoRequestDTO {
   rangoMinimo: number;
   rangoMaximo: number;
@@ -120,17 +113,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(message);
   }
 
-  // Si el backend devuelve 204 No Content (ej. en los DELETE), no intentamos parsear JSON
   if (response.status === 204) {
     return {} as T;
   }
 
   return response.json() as Promise<T>;
 }
-
-// ============================================================================
-// 4. ENDPOINTS: CATEGORÍA (CategoriaController.java)
-// ============================================================================
 
 export function listarCategorias() {
   return request<Categoria[]>("/api/categorias");
@@ -154,10 +142,6 @@ export function eliminarCategoria(idCategoria: number) {
   return request<void>(`/api/categorias/${idCategoria}`, { method: "DELETE" });
 }
 
-// ============================================================================
-// 5. ENDPOINTS: PRODUCTO (ProductoController.java)
-// ============================================================================
-
 export function filtrarProductos(params?: {
   nombre?: string;
   idCategoria?: number;
@@ -173,7 +157,7 @@ export function filtrarProductos(params?: {
   if (params?.sort) queryParams.append("sort", params.sort);
 
   const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
-  // Retorna PageResponse ya que el backend devuelve un Page<ProductoDTO>
+
   return request<PageResponse<Producto>>(`/api/productos${queryString}`);
 }
 
@@ -211,10 +195,6 @@ export function desactivarProducto(idProducto: number) {
   return request<Producto>(`/api/productos/${idProducto}/desactivar`, { method: "PATCH" });
 }
 
-// ============================================================================
-// 6. ENDPOINTS: VARIANTE PRODUCTO (VarianteProductoController.java)
-// ============================================================================
-
 export function obtenerVariantesPorProducto(idProducto: number) {
   return request<VarianteProducto[]>(`/api/variantes/producto/${idProducto}`);
 }
@@ -237,7 +217,6 @@ export function eliminarVarianteProducto(idVariante: number) {
   return request<void>(`/api/variantes/${idVariante}`, { method: "DELETE" });
 }
 
-//PARA REGLA DE DESCUENTO
 export function obtenerReglasPorProducto(idProducto: number) {
   return request<ReglaDescuentoRequestDTO[]>(`/api/reglas/producto/${idProducto}`);
 }
@@ -246,7 +225,6 @@ export function eliminarReglaPorProducto(idRegla: number) {
   return request<void>(`/api/reglas/${idRegla}`, { method: "DELETE" });
 }
 
-// PARA COLORES
 export function listarColores() {
   return request<Color[]>("/api/colores");
 }
