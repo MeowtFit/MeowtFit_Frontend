@@ -3,21 +3,20 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import CatalogDetailPage from "../pages/CatalogoDetailPage";
 import CatalogHomePage from "../pages/CatalogoHomePage";
 import LoginPage from "../pages/LoginPage";
+import OlvideContraPage from "../pages/OlvideContraPage";
 
 import AdminLayout from "../components/layout/AdminLayout";
 
 import ComerciantesPage from "../pages/admin/ComerciantesPage";
+import ComerciantesCreatePage from "../pages/admin/ComerciantesCreatePage";
+import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
+import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
+
 import ConfiguraciónPage from "../pages/admin/ConfiguraciónPage";
 import CotizacionesPage from "../pages/admin/CotizacionesPage";
 import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
-import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
-import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
-import OlvideContraPage from "../pages/OlvideContraPage";
-import ComerciantesCreatePage from "../pages/admin/ComerciantesCreatePage";
-import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
-import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -27,12 +26,12 @@ export const router = createBrowserRouter([
     element: <CatalogHomePage />,
   },
   {
-    path: "/login",
-    element: <LoginPage />,
+    path: "/catalogDetail/:id",
+    element: <CatalogDetailPage />,
   },
   {
-    path: "/catalogDetail",
-    element: <CatalogDetailPage />,
+    path: "/login",
+    element: <LoginPage />,
   },
   {
     path: "/olvideContra",
@@ -75,12 +74,12 @@ export const router = createBrowserRouter([
         element: <ComerciantesListPage />,
       },
       {
-        path: "comerciantes/:id/editar",
-        element: <ComerciantesEditPage />,
-      },
-      {
         path: "comerciantes/crear",
         element: <ComerciantesCreatePage />,
+      },
+      {
+        path: "comerciantes/:id/editar",
+        element: <ComerciantesEditPage />,
       },
       {
         path: "configuracion",
@@ -95,5 +94,9 @@ export const router = createBrowserRouter([
         element: <ProductoEditarPage />,
       },
     ],
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
   },
 ]);
