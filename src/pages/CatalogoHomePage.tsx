@@ -159,60 +159,7 @@ export default function CatalogHomePage() {
 
   return (
     <div className="min-h-screen bg-[#f4f8fb] text-slate-800">
-      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white">
-        <div className="mx-auto flex h-[58px] max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="text-xl font-extrabold text-[#087f99]">
-            MEOWTFIT
-          </Link>
-
-          <nav className="hidden items-center gap-9 text-sm font-medium text-slate-600 md:flex">
-            <Link
-              to="/"
-              className="border-b-2 border-[#087f99] pb-1 text-[#087f99]"
-            >
-              Tienda
-            </Link>
-            <a className="hover:text-[#087f99]" href="#">
-              Colecciones
-            </a>
-            <a className="hover:text-[#087f99]" href="#">
-              Ofertas
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-4 text-[#087f99]">
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
-            >
-              <Link
-                to={`/carrito`}
-              >
-                <ShoppingCart size={20} />
-              </Link>
-            </Button>
-
-            {/* Botón Mis Pedidos — visible solo para CLIENTE y ADMINISTRADOR */}
-            {(rolActual === "CLIENTE" || rolActual === "ADMINISTRADOR") && (
-              <Button
-                size="icon"
-                title="Mis pedidos"
-                className="h-12 w-12 rounded-full bg-[#087f99] text-white hover:bg-[#076f86]"
-                onClick={() => navigate("/pedidos")}
-              >
-                <ClipboardList size={20} />
-              </Button>
-            )}
-
-            <Search size={19} className="cursor-pointer hover:text-[#076f86]" />
-
-            <UserSessionMenu />
-          </div>
-        </div>
-      </header>
-
+      
       <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-10 lg:grid-cols-[230px_1fr]">
         <aside>
           <p className="mb-7 text-sm font-medium text-slate-600">

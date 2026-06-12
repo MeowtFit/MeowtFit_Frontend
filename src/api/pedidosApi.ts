@@ -1,7 +1,5 @@
 const API_BASE_URL = "http://localhost:8080";
 
-// ─── Tipos ──────────────────────────────────────────────────────────────────
-
 export type EstadoPedido =
   | "REGISTRADO"
   | "CONFIRMADO"
@@ -11,89 +9,143 @@ export type EstadoPedido =
   | "CANCELADO"
   | "PAGO_RECHAZADO";
 
-export interface VarianteResumen {
-  idVariante: number;
-  talla?: string;
-  colorNombre?: string;
-  imagenUrl?: string;
-  nombreProducto?: string;
-}
+export type CrearPedidoRequest = {
+  metodoPago: string;
+  lineas: {
+    idVariante: number;
+    cantidad: number;
+  }[];
+};
 
-export interface LineaPedidoItem {
+export type LineaPedido = {
   idLineaPedido: number;
   cantidad: number;
   precioVenta: number;
   subtotal: number;
   precioUnitario: number;
   descuentoAplicado: number;
-  variante: VarianteResumen;
-}
+  idVariante: number;
+  nombreProducto: string;
+  talla: string;
+  idColor: number | null;
+  color: string | null;
 
-export interface Pedido {
+  // Esto lo agrego para que tu PedidosListPage actual no se rompa.
+  variante?: {
+    idVariante: number;
+    nombreProducto: string;
+    talla: string;
+    color: string | null;
+    imagenUrl?: string | null;
+  };
+};
+
+export type Pedido = {
   idPedido: number;
-  fechaHoraRegistro: string; // ISO datetime, ej: "2026-04-24T10:00:00"
+  fechaHoraRegistro: string;
   estado: EstadoPedido;
   montoTotal: number;
-  metodoPago?: string;
-  descuento?: number;
-  igv?: number;
-  idUsuario?: number; // visible para ADMINISTRADOR
-  lineas: LineaPedidoItem[];
-  tieneComprobante: boolean;
-  idFactura?: number;
-  archivoComprobante?: string; // URL del archivo subido (para vista admin)
+  metodoPago: string;
+  descuento: number;
+  fechaEntrega: string | null;
+  igv: number;
+  idUsuario: number;
+  nombreUsuario: string;
+  lineas: LineaPedido[];
+
+  // Campos opcionales porque tu vista actual los usa,
+  // pero este backend todavía no los devuelve.
+  idFactura?: number | null;
+  tieneComprobante?: boolean;
+  archivoComprobante?: string | null;
+};
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo completar la operación";
+
+    try {
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+
+    throw new Error(`${response.status} ${message}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
-// ─── Helpers internos ───────────────────────────────────────────────────────
-
-async function fetchConAuth(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  return fetch(url, { ...options, credentials: "include" });
+function adaptarPedido(pedido: Pedido): Pedido {
+  return {
+    ...pedido,
+    idFactura: pedido.idFactura ?? null,
+    tieneComprobante: pedido.tieneComprobante ?? false,
+    archivoComprobante: pedido.archivoComprobante ?? null,
+    lineas: pedido.lineas.map((linea) => ({
+      ...linea,
+      variante: {
+        idVariante: linea.idVariante,
+        nombreProducto: linea.nombreProducto,
+        talla: linea.talla,
+        color: linea.color,
+        imagenUrl: null,
+      },
+    })),
+  };
 }
 
-// ─── API pública ─────────────────────────────────────────────────────────────
+export async function crearPedido(data: CrearPedidoRequest) {
+  const pedido = await request<Pedido>("/api/pedidos", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
-/** Devuelve los pedidos del cliente autenticado */
-export async function listarMisPedidos(): Promise<Pedido[]> {
-  const res = await fetchConAuth(`${API_BASE_URL}/api/pedidos/mis-pedidos`);
-  if (!res.ok) throw new Error("No se pudieron cargar los pedidos.");
-  return res.json() as Promise<Pedido[]>;
+  return adaptarPedido(pedido);
 }
 
-/**
- * Devuelve TODOS los pedidos (solo para ADMINISTRADOR).
- * Endpoint a confirmar con el backend — ajustar si es necesario.
- */
-export async function listarTodosPedidos(): Promise<Pedido[]> {
-  const res = await fetchConAuth(`${API_BASE_URL}/api/pedidos`);
-  if (!res.ok) throw new Error("No se pudieron cargar los pedidos.");
-  return res.json() as Promise<Pedido[]>;
+export async function listarMisPedidos() {
+  const pedidos = await request<Pedido[]>("/api/pedidos/mis-pedidos");
+
+  return pedidos.map(adaptarPedido);
 }
 
-/** Sube el comprobante de pago de un pedido (multipart/form-data) */
-export async function subirComprobante(
-  idPedido: number,
-  archivo: File
-): Promise<void> {
-  const formData = new FormData();
-  formData.append("archivo", archivo);
-  const res = await fetchConAuth(
-    `${API_BASE_URL}/api/comprobantes-pago/pedido/${idPedido}`,
-    { method: "POST", body: formData }
+export async function listarTodosPedidos() {
+  const pedidos = await request<Pedido[]>("/api/pedidos");
+
+  return pedidos.map(adaptarPedido);
+}
+
+export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido) {
+  return request<Pedido>(
+    `/api/pedidos/${idPedido}/estado?nuevoEstado=${nuevoEstado}`,
+    {
+      method: "PATCH",
+    }
   );
-  if (!res.ok) throw new Error("No se pudo subir el comprobante.");
 }
 
-/**
- * Marca el pedido como CONFIRMADO (verificación manual del admin).
- * Endpoint a confirmar con el backend.
- */
-export async function verificarPago(idPedido: number): Promise<void> {
-  const res = await fetchConAuth(
-    `${API_BASE_URL}/api/pedidos/${idPedido}/confirmar`,
-    { method: "PATCH" }
-  );
-  if (!res.ok) throw new Error("No se pudo confirmar el pago.");
+// Tu PedidosListPage usa verificarPago(idPedido), así que dejo este wrapper.
+export function verificarPago(idPedido: number) {
+  return cambiarEstadoPedido(idPedido, "CONFIRMADO");
+}
+
+// Este backend todavía no tiene endpoint para subir comprobantes.
+// Lo dejo para que tu vista compile, pero si lo usas mostrará error.
+export async function subirComprobante(_idPedido: number, _archivo: File) {
+  throw new Error("El backend todavía no tiene endpoint para subir comprobantes.");
 }

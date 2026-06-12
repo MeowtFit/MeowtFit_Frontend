@@ -4,17 +4,12 @@ import {
   ArrowLeft,
   Building2,
   ChevronDown,
-  ClipboardList,
   CreditCard,
-  Search,
   Shield,
-  ShoppingCart,
   Upload,
   X,
 } from "lucide-react";
 
-import UserSessionMenu from "@/components/layout/UserSessionMenu";
-import { Button } from "@/components/ui/button";
 import {
   listarMisPedidos,
   listarTodosPedidos,
@@ -24,15 +19,13 @@ import {
   type Pedido,
 } from "@/api/pedidosApi";
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-const API_BASE_URL = "http://localhost:8080";
 const ITEMS_INICIALES = 3;
 const ITEMS_POR_PAGINA = 3;
+
 const IMAGEN_FALLBACK =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=200&auto=format&fit=crop";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function obtenerRolLocal(): string | null {
   return (
@@ -60,6 +53,7 @@ function formatearFecha(fecha: string): string {
   const dia = String(d.getDate()).padStart(2, "0");
   const mes = String(d.getMonth() + 1).padStart(2, "0");
   const anio = String(d.getFullYear()).slice(2);
+
   return `${dia}/${mes}/${anio}`;
 }
 
@@ -72,46 +66,47 @@ function esCancelado(estado: EstadoPedido): boolean {
   return estado === "CANCELADO" || estado === "PAGO_RECHAZADO";
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 export default function PedidosListPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rol = obtenerRolLocal();
 
-  // ── Protección de ruta ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!rol) {
-      navigate("/login", { replace: true });
-    } else if (rol === "COMERCIANTE") {
-      navigate("/", { replace: true });
-    }
-  }, []);
-
-  // ── Estado principal ────────────────────────────────────────────────────
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidosOcultos, setPedidosOcultos] = useState<Set<number>>(new Set());
   const [visiblesCount, setVisiblesCount] = useState(ITEMS_INICIALES);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Estado del modal ────────────────────────────────────────────────────
   const [modalPedido, setModalPedido] = useState<Pedido | null>(null);
-  const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(null);
+  const [archivoSeleccionado, setArchivoSeleccionado] = useState<File | null>(
+    null
+  );
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
   const [verificando, setVerificando] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [exitoModal, setExitoModal] = useState<string | null>(null);
 
-  // ── Carga de datos ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!rol) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (rol === "COMERCIANTE") {
+      navigate("/", { replace: true });
+    }
+  }, [navigate, rol]);
+
   async function cargarPedidos() {
     try {
       setCargando(true);
       setError(null);
+
       const data =
         rol === "ADMINISTRADOR"
           ? await listarTodosPedidos()
           : await listarMisPedidos();
+
       setPedidos(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar pedidos.");
@@ -126,18 +121,24 @@ export default function PedidosListPage() {
     }
   }, []);
 
-  // ── Computed ────────────────────────────────────────────────────────────
   const pedidosActivos = pedidos.filter((p) => !pedidosOcultos.has(p.idPedido));
-  const pedidosCancelados = pedidosActivos.filter((p) => esCancelado(p.estado));
-  const pedidosPendientes = pedidosActivos.filter((p) => !esCancelado(p.estado));
+
+  const pedidosCancelados = pedidosActivos.filter((p) =>
+    esCancelado(p.estado)
+  );
+
+  const pedidosPendientes = pedidosActivos.filter(
+    (p) => !esCancelado(p.estado)
+  );
+
   const totalPagar = pedidosPendientes.reduce(
     (sum, p) => sum + Number(p.montoTotal),
     0
   );
+
   const pedidosVisibles = pedidosActivos.slice(0, visiblesCount);
   const hayMas = visiblesCount < pedidosActivos.length;
 
-  // ── Acciones ────────────────────────────────────────────────────────────
   function ocultarPedido(idPedido: number) {
     setPedidosOcultos((prev) => new Set([...prev, idPedido]));
   }
@@ -158,16 +159,24 @@ export default function PedidosListPage() {
 
   async function handleSubirComprobante() {
     if (!modalPedido || !archivoSeleccionado) return;
+
     try {
       setSubiendoComprobante(true);
       setErrorModal(null);
+
       await subirComprobante(modalPedido.idPedido, archivoSeleccionado);
-      const pedidoActualizado = { ...modalPedido, tieneComprobante: true };
+
+      const pedidoActualizado = {
+        ...modalPedido,
+        tieneComprobante: true,
+      };
+
       setPedidos((prev) =>
         prev.map((p) =>
           p.idPedido === modalPedido.idPedido ? pedidoActualizado : p
         )
       );
+
       setModalPedido(pedidoActualizado);
       setExitoModal("¡Comprobante subido correctamente!");
       setArchivoSeleccionado(null);
@@ -182,11 +191,15 @@ export default function PedidosListPage() {
 
   async function handleVerificarPago() {
     if (!modalPedido) return;
+
     try {
       setVerificando(true);
       setErrorModal(null);
+
       await verificarPago(modalPedido.idPedido);
+
       setExitoModal("Pago verificado correctamente.");
+
       setPedidos((prev) =>
         prev.map((p) =>
           p.idPedido === modalPedido.idPedido
@@ -194,6 +207,7 @@ export default function PedidosListPage() {
             : p
         )
       );
+
       setTimeout(() => {
         cerrarModal();
         void cargarPedidos();
@@ -207,61 +221,6 @@ export default function PedidosListPage() {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // HEADER (compartido entre vistas)
-  // ─────────────────────────────────────────────────────────────────────────
-  function Header() {
-    return (
-      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white">
-        <div className="mx-auto flex h-[58px] max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="text-xl font-extrabold text-[#087f99]">
-            MEOWTFIT
-          </Link>
-
-          <nav className="hidden items-center gap-9 text-sm font-medium text-slate-600 md:flex">
-            <Link to="/" className="hover:text-[#087f99]">
-              Tienda
-            </Link>
-            <a className="hover:text-[#087f99]" href="#">
-              Colecciones
-            </a>
-            <a className="hover:text-[#087f99]" href="#">
-              Ofertas
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-4 text-[#087f99]">
-            <Button
-              size="icon"
-              className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
-            >
-              <ShoppingCart size={20} />
-            </Button>
-
-            {/* Pedidos — activo en esta página */}
-            <Button
-              size="icon"
-              title="Mis pedidos"
-              className="h-12 w-12 rounded-full bg-[#087f99] text-white ring-2 ring-[#087f99] ring-offset-2 hover:bg-[#076f86]"
-              onClick={() => navigate("/pedidos")}
-            >
-              <ClipboardList size={20} />
-            </Button>
-
-            <Search
-              size={19}
-              className="cursor-pointer hover:text-[#076f86]"
-            />
-            <UserSessionMenu />
-          </div>
-        </div>
-      </header>
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // FOOTER
-  // ─────────────────────────────────────────────────────────────────────────
   function Footer() {
     return (
       <footer className="mt-auto border-t border-slate-200 bg-white py-8">
@@ -270,6 +229,7 @@ export default function PedidosListPage() {
             <span className="text-lg font-extrabold text-slate-800">
               MEOWTFIT
             </span>
+
             <div className="flex gap-6 text-xs font-medium text-slate-500">
               {[
                 "GUÍA DE TALLAS",
@@ -282,8 +242,9 @@ export default function PedidosListPage() {
                 </a>
               ))}
             </div>
+
             <p className="text-xs text-slate-400">
-              © 2024 Meowtfit Boutique. Inspiración local, visión global.
+              © 2026 Meowtfit Boutique. Inspiración local, visión global.
             </p>
           </div>
         </div>
@@ -291,48 +252,38 @@ export default function PedidosListPage() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // GUARD: sin rol válido
-  // ─────────────────────────────────────────────────────────────────────────
   if (!rol || rol === "COMERCIANTE") return null;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CARGANDO
-  // ─────────────────────────────────────────────────────────────────────────
   if (cargando) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#f4f8fb]">
-        <Header />
+      <div className="flex min-h-[calc(100vh-66px)] flex-col bg-[#f4f8fb]">
         <main className="flex flex-1 items-center justify-center">
           <p className="text-sm font-medium text-slate-500">
             Cargando pedidos...
           </p>
         </main>
+
         <Footer />
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VISTA ADMINISTRADOR
-  // ═══════════════════════════════════════════════════════════════════════════
   if (rol === "ADMINISTRADOR") {
     return (
-      <div className="flex min-h-screen flex-col bg-[#f4f8fb]">
-        <Header />
-
+      <div className="flex min-h-[calc(100vh-66px)] flex-col bg-[#f4f8fb]">
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-          {/* Título */}
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-extrabold text-slate-800">
                 Verificación de Pedidos
               </h1>
+
               <p className="mt-1 text-sm text-slate-500">
                 Revisa los comprobantes subidos por los compradores y confirma
                 los pagos.
               </p>
             </div>
+
             <button
               type="button"
               onClick={() => void cargarPedidos()}
@@ -368,9 +319,11 @@ export default function PedidosListPage() {
                     <th className="px-5 py-4 text-left">Acción</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {pedidos.map((pedido) => {
                     const cancelado = esCancelado(pedido.estado);
+
                     return (
                       <tr
                         key={pedido.idPedido}
@@ -379,12 +332,15 @@ export default function PedidosListPage() {
                         <td className="px-5 py-4 font-semibold text-slate-800">
                           {codigoFactura(pedido)}
                         </td>
+
                         <td className="px-5 py-4 text-slate-500">
                           {pedido.idUsuario ?? "—"}
                         </td>
+
                         <td className="px-5 py-4 text-slate-500">
                           {formatearFecha(pedido.fechaHoraRegistro)}
                         </td>
+
                         <td className="px-5 py-4">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -396,6 +352,7 @@ export default function PedidosListPage() {
                             {pedido.estado}
                           </span>
                         </td>
+
                         <td className="px-5 py-4">
                           {pedido.tieneComprobante ? (
                             <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-600">
@@ -407,9 +364,11 @@ export default function PedidosListPage() {
                             </span>
                           )}
                         </td>
+
                         <td className="px-5 py-4 font-bold text-[#bd2d73]">
                           {formatearPrecio(Number(pedido.montoTotal))}
                         </td>
+
                         <td className="px-5 py-4">
                           <button
                             type="button"
@@ -430,7 +389,6 @@ export default function PedidosListPage() {
 
         <Footer />
 
-        {/* ─── Modal Administrador ─────────────────────────────────────────── */}
         {modalPedido && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -440,7 +398,6 @@ export default function PedidosListPage() {
               className="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Cabecera */}
               <div className="mb-6 flex items-center justify-between">
                 <button
                   type="button"
@@ -449,9 +406,11 @@ export default function PedidosListPage() {
                 >
                   <ArrowLeft size={16} /> Volver
                 </button>
+
                 <span className="text-base font-extrabold text-[#087f99]">
                   MEOWTFIT
                 </span>
+
                 <button
                   type="button"
                   onClick={cerrarModal}
@@ -461,10 +420,10 @@ export default function PedidosListPage() {
                 </button>
               </div>
 
-              {/* Info pedido */}
               <h2 className="text-xl font-bold text-slate-800">
                 Pedido {codigoFactura(modalPedido)}
               </h2>
+
               <p className="mt-1 text-sm text-slate-500">
                 Fecha: {formatearFecha(modalPedido.fechaHoraRegistro)} · Estado:{" "}
                 <span
@@ -478,7 +437,6 @@ export default function PedidosListPage() {
                 </span>
               </p>
 
-              {/* Lista de productos */}
               <div className="mt-5 max-h-56 space-y-3 overflow-y-auto pr-1">
                 {modalPedido.lineas.map((linea) => (
                   <div
@@ -491,6 +449,7 @@ export default function PedidosListPage() {
                         alt={linea.variante?.nombreProducto ?? "Prenda"}
                         className="h-12 w-12 rounded-lg object-cover"
                       />
+
                       <div>
                         <p className="text-sm font-semibold text-slate-800">
                           {linea.variante?.nombreProducto ?? "Producto"}
@@ -498,12 +457,14 @@ export default function PedidosListPage() {
                             ? ` — Talla ${linea.variante.talla}`
                             : ""}
                         </p>
+
                         <p className="mt-0.5 text-xs text-slate-400">
                           {linea.cantidad} ×{" "}
                           {formatearPrecio(Number(linea.precioUnitario))}
                         </p>
                       </div>
                     </div>
+
                     <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
                       {formatearPrecio(Number(linea.subtotal))}
                     </p>
@@ -511,7 +472,6 @@ export default function PedidosListPage() {
                 ))}
               </div>
 
-              {/* Total */}
               <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 font-bold text-slate-800">
                 <span>Total</span>
                 <span className="text-lg text-[#bd2d73]">
@@ -519,13 +479,13 @@ export default function PedidosListPage() {
                 </span>
               </div>
 
-              {/* Estado comprobante */}
               <div className="mt-5">
                 {modalPedido.tieneComprobante ? (
                   <div className="rounded-xl bg-green-50 px-4 py-3">
                     <p className="text-sm font-semibold text-green-700">
                       ✓ El comprador ha subido su comprobante.
                     </p>
+
                     {modalPedido.archivoComprobante && (
                       <a
                         href={normalizarImagen(modalPedido.archivoComprobante)}
@@ -546,19 +506,18 @@ export default function PedidosListPage() {
                 )}
               </div>
 
-              {/* Feedback */}
               {errorModal && (
                 <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
                   {errorModal}
                 </p>
               )}
+
               {exitoModal && (
                 <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-600">
                   {exitoModal}
                 </p>
               )}
 
-              {/* Verificar: solo si hay comprobante y pedido está en REGISTRADO */}
               {modalPedido.tieneComprobante &&
                 modalPedido.estado === "REGISTRADO" && (
                   <button
@@ -577,13 +536,8 @@ export default function PedidosListPage() {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VISTA CLIENTE
-  // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex min-h-screen flex-col bg-[#f4f8fb]">
-      <Header />
-
+    <div className="flex min-h-[calc(100vh-66px)] flex-col bg-[#f4f8fb]">
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h1 className="mb-8 text-3xl font-extrabold text-slate-800">
           Mis Pedidos
@@ -596,13 +550,13 @@ export default function PedidosListPage() {
         )}
 
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_300px]">
-          {/* ── Columna izquierda: lista de pedidos ─────────────────────── */}
           <div>
             {pedidosActivos.length === 0 ? (
               <div className="rounded-2xl bg-white p-16 text-center shadow-sm">
                 <p className="text-lg font-bold text-slate-700">
                   No tienes pedidos aún.
                 </p>
+
                 <Link
                   to="/"
                   className="mt-4 inline-block text-sm font-semibold text-[#087f99] hover:underline"
@@ -617,12 +571,10 @@ export default function PedidosListPage() {
                     const cancelado = esCancelado(pedido.estado);
                     const etiqueta = cancelado ? "CANCELADA" : "PENDIENTE";
 
-                    // Primeras 2 imágenes del pedido (mínimo 1, máximo 2)
                     const imagenesPrendas = pedido.lineas
                       .slice(0, 2)
                       .map((l) => normalizarImagen(l.variante?.imagenUrl));
 
-                    // Total de unidades
                     const cantidadProductos = pedido.lineas.reduce(
                       (sum, l) => sum + l.cantidad,
                       0
@@ -637,7 +589,6 @@ export default function PedidosListPage() {
                             : ""
                         }`}
                       >
-                        {/* Botón ocultar */}
                         <button
                           type="button"
                           onClick={() => ocultarPedido(pedido.idPedido)}
@@ -648,11 +599,10 @@ export default function PedidosListPage() {
                         </button>
 
                         <div className="flex items-center gap-4 pr-6">
-                          {/* Imágenes de prendas */}
                           <div className="flex shrink-0 gap-2">
                             {imagenesPrendas.map((src, i) => (
                               <img
-                                key={i}
+                                key={`${pedido.idPedido}-${i}`}
                                 src={src}
                                 alt="Prenda"
                                 className="h-[90px] w-[72px] rounded-lg object-cover"
@@ -660,12 +610,12 @@ export default function PedidosListPage() {
                             ))}
                           </div>
 
-                          {/* Información central */}
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-base font-bold text-slate-800">
                               Factura – {codigoFactura(pedido)} (
                               {formatearFecha(pedido.fechaHoraRegistro)})
                             </p>
+
                             <p className="mt-0.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
                               Cantidad de productos: {cantidadProductos}
                             </p>
@@ -678,13 +628,13 @@ export default function PedidosListPage() {
                               >
                                 Detalles
                               </button>
+
                               <span className="text-sm font-bold tracking-wide text-[#bd2d73]">
                                 {etiqueta}
                               </span>
                             </div>
                           </div>
 
-                          {/* Precio */}
                           <p className="shrink-0 text-xl font-extrabold text-slate-800">
                             {formatearPrecio(Number(pedido.montoTotal))}
                           </p>
@@ -694,7 +644,6 @@ export default function PedidosListPage() {
                   })}
                 </div>
 
-                {/* Botón MOSTRAR MÁS */}
                 {hayMas && (
                   <button
                     type="button"
@@ -710,8 +659,7 @@ export default function PedidosListPage() {
             )}
           </div>
 
-          {/* ── Columna derecha: Resumen Tickets ────────────────────────── */}
-          <aside className="sticky top-[74px]">
+          <aside className="sticky top-[90px]">
             <div className="rounded-2xl bg-[#9ab8c5] p-6 shadow-sm">
               <h2 className="mb-5 text-lg font-bold text-slate-800">
                 Resumen Tickets
@@ -722,12 +670,14 @@ export default function PedidosListPage() {
                   <span>Total</span>
                   <span className="font-semibold">{pedidosActivos.length}</span>
                 </div>
+
                 <div className="flex items-center justify-between text-sm text-slate-700">
                   <span>Canceladas</span>
                   <span className="font-bold text-[#bd2d73]">
                     {pedidosCancelados.length}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between text-sm text-slate-700">
                   <span>Pendientes</span>
                   <span className="font-semibold">
@@ -736,28 +686,28 @@ export default function PedidosListPage() {
                 </div>
               </div>
 
-              {/* Total por pagar */}
               <div className="mt-5 border-t border-slate-400/40 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-base font-bold text-slate-800">
                     Total por pagar
                   </span>
+
                   <span className="text-xl font-extrabold text-[#bd2d73]">
                     {formatearPrecio(totalPagar)}
                   </span>
                 </div>
               </div>
 
-              {/* Seguridad */}
               <div className="mt-5 flex flex-col items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
                   <Shield size={13} className="text-[#087f99]" />
                   Pago 100% Seguro y Encriptado
                 </div>
+
                 <div className="flex items-center gap-4 text-slate-600">
                   <CreditCard size={22} />
                   <Building2 size={22} />
-                  {/* Ícono transferencia bancaria */}
+
                   <svg
                     width="22"
                     height="22"
@@ -778,7 +728,6 @@ export default function PedidosListPage() {
           </aside>
         </div>
 
-        {/* Volver al inicio */}
         <div className="mt-10">
           <Link
             to="/"
@@ -791,7 +740,6 @@ export default function PedidosListPage() {
 
       <Footer />
 
-      {/* ─── Modal Cliente ──────────────────────────────────────────────────── */}
       {modalPedido && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -801,7 +749,6 @@ export default function PedidosListPage() {
             className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Cabecera modal */}
             <div className="mb-8 flex items-center justify-between">
               <button
                 type="button"
@@ -810,24 +757,23 @@ export default function PedidosListPage() {
               >
                 <ArrowLeft size={14} /> Volver
               </button>
+
               <span className="text-base font-extrabold text-[#087f99]">
                 MEOWTFIT
               </span>
             </div>
 
-            {/*
-             * CASO A: Pedido cancelado O ya tiene comprobante subido
-             *   → Modal de detalle de productos (solo lectura)
-             */}
             {esCancelado(modalPedido.estado) || modalPedido.tieneComprobante ? (
               <>
                 <h2 className="text-xl font-bold text-slate-800">
                   Detalle del pedido
                 </h2>
+
                 <p className="mt-1 text-sm text-slate-500">
                   Factura {codigoFactura(modalPedido)} —{" "}
                   {formatearFecha(modalPedido.fechaHoraRegistro)}
                 </p>
+
                 {modalPedido.tieneComprobante &&
                   !esCancelado(modalPedido.estado) && (
                     <p className="mt-1 text-xs font-medium text-green-600">
@@ -835,7 +781,6 @@ export default function PedidosListPage() {
                     </p>
                   )}
 
-                {/* Lista de prendas */}
                 <div className="mt-6 max-h-72 space-y-4 overflow-y-auto pr-1">
                   {modalPedido.lineas.map((linea) => (
                     <div
@@ -848,6 +793,7 @@ export default function PedidosListPage() {
                           alt={linea.variante?.nombreProducto ?? "Prenda"}
                           className="h-14 w-11 rounded-lg object-cover"
                         />
+
                         <div>
                           <p className="text-sm font-semibold text-slate-800">
                             {linea.variante?.nombreProducto ?? "Producto"}
@@ -855,12 +801,14 @@ export default function PedidosListPage() {
                               ? ` — Talla ${linea.variante.talla}`
                               : ""}
                           </p>
+
                           <p className="mt-0.5 text-xs text-slate-400">
                             {linea.cantidad} ×{" "}
                             {formatearPrecio(Number(linea.precioUnitario))}
                           </p>
                         </div>
                       </div>
+
                       <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
                         {formatearPrecio(Number(linea.subtotal))}
                       </p>
@@ -868,27 +816,25 @@ export default function PedidosListPage() {
                   ))}
                 </div>
 
-                {/* Total del pedido */}
                 <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
                   <span className="font-bold text-slate-800">Total</span>
+
                   <span className="text-lg font-extrabold text-[#bd2d73]">
                     {formatearPrecio(Number(modalPedido.montoTotal))}
                   </span>
                 </div>
               </>
             ) : (
-              /*
-               * CASO B: Sin comprobante y no cancelado
-               *   → Formulario para subir comprobante de pago
-               */
               <>
                 <h2 className="text-xl font-bold text-slate-800">
                   Detalles y subir comprobante
                 </h2>
+
                 <p className="mt-1 text-sm text-slate-500">
                   Factura {codigoFactura(modalPedido)} —{" "}
                   {formatearFecha(modalPedido.fechaHoraRegistro)}
                 </p>
+
                 <p className="mt-1 text-sm font-bold text-[#bd2d73]">
                   Estado: PENDIENTE
                 </p>
@@ -898,28 +844,29 @@ export default function PedidosListPage() {
                     {errorModal}
                   </p>
                 )}
+
                 {exitoModal && (
                   <p className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-600">
                     {exitoModal}
                   </p>
                 )}
 
-                {/* Vista previa del archivo seleccionado */}
                 {archivoSeleccionado && (
                   <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Archivo seleccionado
                     </p>
+
                     <p className="mt-1 truncate text-sm font-medium text-slate-700">
                       {archivoSeleccionado.name}
                     </p>
+
                     <p className="mt-0.5 text-xs text-slate-400">
                       {(archivoSeleccionado.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
                 )}
 
-                {/* Input de archivo oculto */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -931,7 +878,6 @@ export default function PedidosListPage() {
                   }}
                 />
 
-                {/* Botón principal: seleccionar → subir */}
                 <button
                   type="button"
                   disabled={subiendoComprobante}
@@ -957,7 +903,6 @@ export default function PedidosListPage() {
                   )}
                 </button>
 
-                {/* Opción para cambiar el archivo elegido */}
                 {archivoSeleccionado && !subiendoComprobante && (
                   <button
                     type="button"
