@@ -3,9 +3,11 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import CatalogDetailPage from "../pages/CatalogoDetailPage";
 import CatalogHomePage from "../pages/CatalogoHomePage";
 import LoginPage from "../pages/LoginPage";
-import CarritoPage from "../pages/CarritoPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
+import CarritoPage from "../pages/CarritoPage";
+import PedidosListPage from "../pages/PedidosListPage";
 
+import CatalogLayout from "../components/layout/CatalogLayout";
 import AdminLayout from "../components/layout/AdminLayout";
 
 import ComerciantesPage from "../pages/admin/ComerciantesPage";
@@ -18,30 +20,34 @@ import CotizacionesPage from "../pages/admin/CotizacionesPage";
 import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
+
 import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
 import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
-import PedidosListPage from "../pages/PedidosListPage";
 import ProtectedRoute from "./ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    element: <CatalogHomePage />,
-  },
-  {
-    // Accesible para CLIENTE y ADMINISTRADOR (validación interna en el componente)
-    path: "/pedidos",
-    element: <PedidosListPage />,
-  },
-  {
-    path: "/catalogDetail/:id",
-    element: <CatalogDetailPage />,
-  },
-  {
-    path: "/carrito",
-    element: <CarritoPage />,
+    element: <CatalogLayout />,
+    children: [
+      {
+        path: "/",
+        element: <CatalogHomePage />,
+      },
+      {
+        path: "/catalogDetail/:id",
+        element: <CatalogDetailPage />,
+      },
+      {
+        path: "/carrito",
+        element: <CarritoPage />,
+      },
+      {
+        path: "/pedidos",
+        element: <PedidosListPage />,
+      },
+    ],
   },
   {
     path: "/login",
@@ -72,6 +78,18 @@ export const router = createBrowserRouter([
         element: <InventarioPage />,
       },
       {
+        path: "inventario/crear",
+        element: <ProductoNuevoPage />,
+      },
+      {
+        path: "inventario/:id/editar/:idColor",
+        element: <ProductoEditarPage />,
+      },
+      {
+        path: "inventario/:id/agregarVariante",
+        element: <ProductoNuevaVariantePage />,
+      },
+      {
         path: "ventas",
         element: <VentasPage />,
       },
@@ -98,18 +116,6 @@ export const router = createBrowserRouter([
       {
         path: "configuracion",
         element: <ConfiguraciónPage />,
-      },
-      {
-        path: "inventario/crear",
-        element: <ProductoNuevoPage />,
-      },
-      {
-        path: "inventario/:id/editar/:idColor",
-        element: <ProductoEditarPage />,
-      },
-      {
-        path: "inventario/:id/agregarVariante/",
-        element: <ProductoNuevaVariantePage />,
       },
     ],
   },

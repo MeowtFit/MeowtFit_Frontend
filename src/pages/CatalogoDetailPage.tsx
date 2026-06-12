@@ -449,34 +449,7 @@ export default function CatalogoDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#f7fafc] text-slate-800">
-      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white">
-        <div className="mx-auto flex h-[58px] max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="text-xl font-extrabold text-[#087f99]">
-            MEOWTFIT
-          </Link>
-
-
-          <div className="flex items-center gap-5 text-[#087f99]">
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
-            >
-              <Link
-                to={`/carrito`}
-              >
-                <ShoppingCart size={20} />
-              </Link>
-            </Button>
-
-            <Search size={19} />
-
-            <UserSessionMenu />
-          </div>
-        </div>
-      </header>
-
+      
       <main className="mx-auto max-w-7xl px-6 py-8">
         <Link
           to="/"
