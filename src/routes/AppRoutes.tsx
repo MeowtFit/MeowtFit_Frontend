@@ -17,6 +17,9 @@ import CotizacionesPage from "../pages/admin/CotizacionesPage";
 import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
+import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
+import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
+import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
 import PedidosListPage from "../pages/PedidosListPage";
 import ProtectedRoute from "./ProtectedRoute";
@@ -90,6 +93,18 @@ export const router = createBrowserRouter([
       {
         path: "configuracion",
         element: <ConfiguraciónPage />,
+      },
+      {
+        path: "inventario/crear",
+        element: <ProductoNuevoPage />,
+      },
+      {
+        path: "inventario/:id/editar/:idColor",
+        element: <ProductoEditarPage />,
+      },
+      {
+        path: "inventario/:id/agregarVariante/",
+        element: <ProductoNuevaVariantePage />,
       },
     ],
   },
