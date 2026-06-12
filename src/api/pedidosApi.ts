@@ -144,8 +144,34 @@ export function verificarPago(idPedido: number) {
   return cambiarEstadoPedido(idPedido, "CONFIRMADO");
 }
 
-// Este backend todavía no tiene endpoint para subir comprobantes.
-// Lo dejo para que tu vista compile, pero si lo usas mostrará error.
-export async function subirComprobante(_idPedido: number, _archivo: File) {
-  throw new Error("El backend todavía no tiene endpoint para subir comprobantes.");
+export type ComprobantePagoDTO = {
+  idComprobante: number;
+  archivo: string;
+  fechaSubida: string;
+  tipoArchivo: string;
+  idPedido: number;
+};
+
+export async function subirComprobante(idPedido: number, archivo: File): Promise<ComprobantePagoDTO> {
+  const formData = new FormData();
+  formData.append("archivo", archivo);
+
+  const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/${idPedido}`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo subir el comprobante";
+    try {
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(`${response.status} ${message}`);
+  }
+
+  return response.json() as Promise<ComprobantePagoDTO>;
 }
