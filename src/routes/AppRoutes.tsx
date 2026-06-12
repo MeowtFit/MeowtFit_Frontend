@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import CatalogDetailPage from "../pages/CatalogoDetailPage";
 import CatalogHomePage from "../pages/CatalogoHomePage";
 import LoginPage from "../pages/LoginPage";
+import CarritoPage from "../pages/CarritoPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
 
 import AdminLayout from "../components/layout/AdminLayout";
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
   {
     path: "/catalogDetail/:id",
     element: <CatalogDetailPage />,
+  },
+  {
+    path: "/carrito",
+    element: <CarritoPage />,
   },
   {
     path: "/login",

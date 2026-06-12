@@ -182,10 +182,16 @@ export default function CatalogHomePage() {
 
           <div className="flex items-center gap-4 text-[#087f99]">
             <Button
+              variant="ghost"
               size="icon"
+              asChild
               className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
             >
-              <ShoppingCart size={20} />
+              <Link
+                to={`/carrito`}
+              >
+                <ShoppingCart size={20} />
+              </Link>
             </Button>
 
             {/* Botón Mis Pedidos — visible solo para CLIENTE y ADMINISTRADOR */}

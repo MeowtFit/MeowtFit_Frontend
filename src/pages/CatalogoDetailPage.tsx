@@ -458,10 +458,16 @@ export default function CatalogoDetailPage() {
 
           <div className="flex items-center gap-5 text-[#087f99]">
             <Button
+              variant="ghost"
               size="icon"
+              asChild
               className="h-12 w-12 rounded-full bg-[#bd2d73] text-white hover:bg-[#a82365]"
             >
-              <ShoppingCart size={20} />
+              <Link
+                to={`/carrito`}
+              >
+                <ShoppingCart size={20} />
+              </Link>
             </Button>
 
             <Search size={19} />
