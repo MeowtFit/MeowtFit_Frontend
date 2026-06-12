@@ -3,11 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Save, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  listarCategorias, 
-  crearProducto, 
-  type Categoria, 
-  type VarianteProducto 
+import {
+  listarCategorias,
+  listarColores,
+  crearProducto,
+  type Categoria,
+  type Color,
+  type VarianteProducto,
+  type ReglaDescuentoRequestDTO,
+  type ProductoRequestDTO,
 } from "@/api/productosApi";
 
 // Diccionario de tallas dinámicas
@@ -19,18 +23,11 @@ const OPCIONES_TALLAS: Record<string, string[]> = {
   'jeans': ['28', '30', '32', '34'],
 };
 
-// Interfaz local para manejar las reglas de descuento en el estado
-interface ReglaDescuento {
-  rangoInicio: number;
-  rangoFin: number;
-  porcentajeDescuento: number;
-}
-
 export default function ProductoNuevoPage() {
   const navigate = useNavigate();
-
   // Estados de datos remotos
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [colores, setColores] = useState<Color[]>([]);
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,37 +40,50 @@ export default function ProductoNuevoPage() {
   const [imagenUrl, setImagenUrl] = useState("");
 
   // Estado para la gestión de variantes dinámicas
-  const [variantes, setVariantes] = useState<Array<{ talla: string; color: string; stockDisponible: number }>>([]);
+  const [variantes, setVariantes] = useState<Array<{ talla: string; idColor: number; colorNombre: string; stockDisponible: number }>>([]);
 
   // Variables para agregar una nueva variante individualmente
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
-  const [colorInput, setColorInput] = useState("");
+  const [idColorSeleccionado, setIdColorSeleccionado] = useState("");
   const [stockInput, setStockInput] = useState("0");
   const [errorVariante, setErrorVariante] = useState<string | null>(null);
   //REGLAS DE DESCUENTO
-  const [reglasDescuento, setReglasDescuento] = useState<ReglaDescuento[]>([]);
-  const [rangoInicioInput, setRangoInicioInput] = useState("");
-  const [rangoFinInput, setRangoFinInput] = useState("");
+  const [reglasDescuento, setReglasDescuento] = useState<ReglaDescuentoRequestDTO[]>([]);
+  const [rangoMinInput, setRangoMinInput] = useState("");
+  const [rangoMaxInput, setRangoMaxInput] = useState("");
   const [porcentajeInput, setPorcentajeInput] = useState("");
   const [errorRegla, setErrorRegla] = useState<string | null>(null);
 
-  // 1. Cargar categorías al montar el componente
+  const preventInvalidCharsParaDecimal = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (["e", "E", "+", "-"].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const preventInvalidCharsStock = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Para stock tampoco permitimos puntos o comas decimales
+    if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+  // 1. Cargar categorías y colores al montar el componente
   useEffect(() => {
-    listarCategorias()
-      .then((data) => {
-        setCategorias(data);
+    Promise.all([listarCategorias(), listarColores()])
+      .then(([dataCategorias, dataColores]) => {
+        setCategorias(dataCategorias);
+        setColores(dataColores);
         setCargandoCategorias(false);
       })
       .catch((err) => {
-        console.error("Error al cargar categorías:", err);
-        setError("No se pudieron cargar las categorías del servidor.");
+        console.error("Error al cargar datos iniciales:", err);
+        setError("No se pudieron cargar las categorías o colores del servidor.");
         setCargandoCategorias(false);
       });
   }, []);
 
   // 2. Obtener qué tallas mostrar en los botones/select según la categoría elegida
   const categoriaActual = categorias.find(c => c.idCategoria === Number(idCategoria));
-  const tallasDisponibles = categoriaActual 
+  const tallasDisponibles = categoriaActual
     ? (Object.entries(OPCIONES_TALLAS).find(([key]) => categoriaActual.nombre.toLowerCase().includes(key))?.[1] || ['S', 'M', 'L', 'XL'])
     : ['S', 'M', 'L', 'XL']; // Tallas por defecto si no hay categoría seleccionada
 
@@ -85,13 +95,19 @@ export default function ProductoNuevoPage() {
       setErrorVariante("Por favor, selecciona una talla.");
       return;
     }
-    if (!colorInput.trim()) {
-      setErrorVariante("Por favor, escribe un color.");
+    if (!idColorSeleccionado) {
+      setErrorVariante("Por favor, selecciona un color.");
+      return;
+    }
+
+    const colorObj = colores.find(c => c.idColor === Number(idColorSeleccionado));
+    if (!colorObj) {
+      setErrorVariante("El color seleccionado no es válido.");
       return;
     }
 
     // Evitar duplicados exactos de Talla + Color
-    const existe = variantes.some(v => v.talla === tallaSeleccionada && v.color.toLowerCase() === colorInput.toLowerCase().trim());
+    const existe = variantes.some(v => v.talla === tallaSeleccionada && v.idColor === colorObj.idColor);
     if (existe) {
       setErrorVariante("Esta combinación de talla y color ya está agregada.");
       return;
@@ -101,11 +117,12 @@ export default function ProductoNuevoPage() {
       ...variantes,
       {
         talla: tallaSeleccionada,
-        color: colorInput.trim(),
+        idColor: colorObj.idColor,
+        colorNombre: colorObj.nombre,
         stockDisponible: Number(stockInput) || 0
       }
     ]);
-    setColorInput("");
+    setIdColorSeleccionado("");
     setStockInput("0");
   };
 
@@ -118,11 +135,11 @@ export default function ProductoNuevoPage() {
   const handleAgregarRegla = () => {
     setErrorRegla(null);
 
-    const inicio = Number(rangoInicioInput);
-    const fin = Number(rangoFinInput);
+    const inicio = Number(rangoMinInput);
+    const fin = Number(rangoMaxInput);
     const porcentaje = Number(porcentajeInput);
 
-    if (rangoInicioInput === "" || rangoFinInput === "" || porcentajeInput === "") {
+    if (rangoMinInput === "" || rangoMaxInput === "" || porcentajeInput === "") {
       setErrorRegla("Por favor, completa todos los campos de la regla de descuento.");
       return;
     }
@@ -143,9 +160,9 @@ export default function ProductoNuevoPage() {
     }
 
     // Validación opcional: verificar solapamiento básico de rangos
-    const solapado = reglasDescuento.some(r => 
-      (inicio >= r.rangoInicio && inicio <= r.rangoFin) || 
-      (fin >= r.rangoInicio && fin <= r.rangoFin)
+    const solapado = reglasDescuento.some(r =>
+      (inicio >= r.rangoMinimo && inicio <= r.rangoMaximo) ||
+      (fin >= r.rangoMinimo && fin <= r.rangoMaximo)
     );
     if (solapado) {
       if (!confirm("El rango ingresado parece cruzarse con una regla existente. ¿Deseas agregarlo de todas formas?")) {
@@ -155,10 +172,10 @@ export default function ProductoNuevoPage() {
 
     setReglasDescuento([
       ...reglasDescuento,
-      { rangoInicio: inicio, rangoFin: fin, porcentajeDescuento: porcentaje }
+      { rangoMinimo: inicio, rangoMaximo: fin, porcentaje: porcentaje }
     ]);
-    setRangoInicioInput((fin + 1).toString());
-    setRangoFinInput("");
+    setRangoMinInput((fin + 1).toString());
+    setRangoMaxInput("");
     setPorcentajeInput("");
   };
 
@@ -185,34 +202,35 @@ export default function ProductoNuevoPage() {
 
     try {
       setGuardando(true);
-
-      // Estructuramos la petición según el tipo "CrearProductoRequest" de productosApi.ts
-      const productoRequest = {
+      const productoRequest: ProductoRequestDTO = {
         nombre: nombre.trim(),
         precioBase: Number(precioBase),
         descripcion: descripcion.trim() || undefined,
         imagenUrl: imagenUrl.trim() || undefined,
         idCategoria: Number(idCategoria),
-        // Mapeamos a lo que espera el DTO del backend
+
+        // Mapeamos las variantes al formato VarianteProductoRequestDTO
         variantes: variantes.map(v => ({
           talla: v.talla,
-          color: v.color,
+          idColor: v.idColor,
           stockDisponible: v.stockDisponible,
           stockReservado: 0
+          // Nota: No enviamos "idProducto" porque en el frontend aún no existe. 
+          // El backend se encargará de asignarlo automáticamente.
+        })),
+
+        // Mapeamos las reglas al formato ReglaDescuentoRequestDTO
+        reglasDescuento: reglasDescuento.map(r => ({
+          rangoMinimo: r.rangoMinimo,
+          rangoMaximo: r.rangoMaximo,
+          porcentaje: r.porcentaje
         }))
-        
-        // Aquí adjuntas el arreglo de reglas al DTO. Asegúrate de que tu Backend (ProductoRequestDTO) reciba esta propiedad.
-        /*reglasDescuento: reglasDescuento.map(r => ({
-          rangoInicio: r.rangoInicio,
-          rangoFin: r.rangoFin,
-          porcentajeDescuento: r.porcentajeDescuento
-        }))*/
       };
 
+      // Enviamos todo el paquete en una sola petición
       await crearProducto(productoRequest);
-      
-      // Redirigir de vuelta al inventario tras el éxito
       navigate("/admin/inventario");
+
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Ocurrió un error al registrar el producto.");
@@ -223,7 +241,7 @@ export default function ProductoNuevoPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      
+
       {/* Cabecera / Navbar superior de acción */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -237,10 +255,10 @@ export default function ProductoNuevoPage() {
             <p className="text-xs text-zinc-500">Agrega un nuevo producto físico y sus variantes al inventario.</p>
           </div>
         </div>
-        
-        <Button 
-          onClick={handleSubmit} 
-          disabled={guardando} 
+
+        <Button
+          onClick={handleSubmit}
+          disabled={guardando}
           className="bg-[#087f99] hover:bg-[#066a80] text-white gap-2 font-medium"
         >
           {guardando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -257,19 +275,19 @@ export default function ProductoNuevoPage() {
 
       {/* Grid de Formulario */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* COLUMNA IZQUIERDA Y CENTRAL: Detalles del producto y Variantes (Ocupa 2/3) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Card: Información Básica */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Información Básica</h2>
-            
+
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Nombre del Producto *</label>
-              <Input 
-                type="text" 
-                placeholder='Ej. Blazer Lino "Arena"' 
+              <Input
+                type="text"
+                placeholder='Ej. Blazer Lino "Arena"'
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 className="border-zinc-200 focus-visible:ring-[#087f99] h-10"
@@ -278,7 +296,7 @@ export default function ProductoNuevoPage() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Descripción</label>
-              <textarea 
+              <textarea
                 placeholder="Describe los detalles de la prenda, materiales, etc..."
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
@@ -288,12 +306,12 @@ export default function ProductoNuevoPage() {
             {/* Card: Multimedia / Imagen */}
             <div className="space-y-1">
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Imagen del Producto</h2>
-              
+
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-700">URL de la Imagen</label>
-                <Input 
-                  type="url" 
-                  placeholder="https://images.unsplash.com/..." 
+                <Input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
                   value={imagenUrl}
                   onChange={(e) => setImagenUrl(e.target.value)}
                   className="border-zinc-200 focus-visible:ring-[#087f99] h-10 text-xs"
@@ -303,9 +321,9 @@ export default function ProductoNuevoPage() {
               {/* Preview de la imagen si existe la URL */}
               {imagenUrl.trim() && (
                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden">
-                  <img 
-                    src={imagenUrl} 
-                    alt="Vista previa del producto" 
+                  <img
+                    src={imagenUrl}
+                    alt="Vista previa del producto"
                     className="max-h-full object-contain rounded"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=Error+al+cargar+imagen";
@@ -319,18 +337,17 @@ export default function ProductoNuevoPage() {
           {/* Card: Variantes (Tallas y Colores) */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-6">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-800">Tallas y Variantes Disponibles</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Selecciona una talla, escribe el color y define el stock inicial.</p>
+              <h2 className="text-sm font-semibold text-zinc-800">Tallas y Variantes Disponibles </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Selecciona una talla, el color y define el stock inicial. (Min. 1 variante)*</p>
             </div>
-
             {/* Sub-formulario para agregar una variante temporal */}
             <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
-              
+
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">1. Talla</label>
-                <select 
+                <select
                   value={tallaSeleccionada}
-                  onChange={(e) => {setTallaSeleccionada(e.target.value); setErrorVariante(null);}}
+                  onChange={(e) => { setTallaSeleccionada(e.target.value); setErrorVariante(null); }}
                   className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99]"
                 >
                   <option value="">Seleccionar...</option>
@@ -342,27 +359,33 @@ export default function ProductoNuevoPage() {
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">2. Color</label>
-                <Input 
-                  type="text" 
-                  placeholder="Ej. Blanco, Negro" 
-                  value={colorInput}
-                  onChange={(e) => {setColorInput(e.target.value); setErrorVariante(null);}}
-                  className="border-zinc-200 bg-white h-10"
-                />
+                <select
+                  value={idColorSeleccionado}
+                  onChange={(e) => { setIdColorSeleccionado(e.target.value); setErrorVariante(null); }}
+                  className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99]"
+                >
+                  <option value="">Seleccionar...</option>
+                  {colores.map((color) => (
+                    <option key={color.idColor} value={color.idColor.toString()}>
+                      {color.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">3. Stock Inicial</label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   min="0"
                   value={stockInput}
                   onChange={(e) => setStockInput(e.target.value)}
+                  onKeyDown={preventInvalidCharsStock}
                   className="border-zinc-200 bg-white h-10"
                 />
               </div>
 
-              <Button 
+              <Button
                 type="button"
                 onClick={handleAgregarVariante}
                 variant="outline"
@@ -401,17 +424,27 @@ export default function ProductoNuevoPage() {
                     variantes.map((v, index) => (
                       <tr key={index} className="hover:bg-zinc-50/50 transition-colors">
                         <td className="p-3 font-semibold text-zinc-900">{v.talla}</td>
-                        <td className="p-3">{v.color}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            {colores.find(c => c.idColor === v.idColor)?.hexadecimal && (
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                                style={{ backgroundColor: colores.find(c => c.idColor === v.idColor)?.hexadecimal }}
+                              />
+                            )}
+                            <span>{v.colorNombre}</span>
+                          </div>
+                        </td>
                         <td className="p-3">
                           <span className="bg-zinc-100 px-2.5 py-0.5 rounded-full font-mono text-xs font-medium text-zinc-700">
-                            {v.stockDisponible} uds
+                            {v.stockDisponible} und
                           </span>
                         </td>
                         <td className="p-3 text-right">
-                          <Button 
+                          <Button
                             type="button"
-                            variant="ghost" 
-                            size="icon" 
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleEliminarVariante(index)}
                             className="h-8 w-8 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                           >
@@ -429,20 +462,21 @@ export default function ProductoNuevoPage() {
 
         {/* COLUMNA DERECHA: Organización, Precios y Multimedia (Ocupa 1/3) */}
         <div className="space-y-6">
-  
+
           {/* Card: Precio y Categoría */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Precio y Categoría</h2>
-            
+
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Precio Base (S/.) *</label>
-              <Input 
-                type="number" 
+              <Input
+                type="number"
                 step="1.00"
                 min="0"
-                placeholder="0.00" 
+                placeholder="0.00"
                 value={precioBase}
                 onChange={(e) => setPrecioBase(e.target.value)}
+                onKeyDown={preventInvalidCharsParaDecimal}
                 className="border-zinc-200 focus-visible:ring-[#087f99] h-10 font-mono"
                 required
               />
@@ -450,11 +484,11 @@ export default function ProductoNuevoPage() {
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-zinc-700">Categoría del Producto *</label>
-              <select 
+              <select
                 value={idCategoria}
                 onChange={(e) => {
                   setIdCategoria(e.target.value);
-                  setVariantes([]); 
+                  setVariantes([]);
                   setTallaSeleccionada("");
                 }}
                 disabled={cargandoCategorias}
@@ -485,23 +519,25 @@ export default function ProductoNuevoPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-[10px] font-medium text-zinc-600">Rango Inicial (und)</label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     min="0"
                     placeholder="Min"
-                    value={rangoInicioInput}
-                    onChange={(e) => {setRangoInicioInput(e.target.value); setErrorRegla(null);}}
+                    value={rangoMinInput}
+                    onChange={(e) => { setRangoMinInput(e.target.value); setErrorRegla(null); }}
+                    onKeyDown={preventInvalidCharsStock}
                     className="h-9 bg-white text-xs border-zinc-200"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-medium text-zinc-600">Rango Final (und)</label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     min="0"
                     placeholder="Max"
-                    value={rangoFinInput}
-                    onChange={(e) => {setRangoFinInput(e.target.value); setErrorRegla(null);}}
+                    value={rangoMaxInput}
+                    onChange={(e) => { setRangoMaxInput(e.target.value); setErrorRegla(null); }}
+                    onKeyDown={preventInvalidCharsStock}
                     className="h-9 bg-white text-xs border-zinc-200"
                   />
                 </div>
@@ -510,14 +546,15 @@ export default function ProductoNuevoPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-medium text-zinc-600">Porcentaje Descuento (%)</label>
                 <div className="relative">
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     step="0.01"
                     min="0"
                     max="100"
                     placeholder="0.00"
                     value={porcentajeInput}
-                    onChange={(e) => {setPorcentajeInput(e.target.value); setErrorRegla(null);}}
+                    onChange={(e) => { setPorcentajeInput(e.target.value); setErrorRegla(null); }}
+                    onKeyDown={preventInvalidCharsParaDecimal}
                     className="h-9 bg-white text-xs border-zinc-200 pr-7 font-mono"
                   />
                   <span className="absolute right-2.5 top-2.5 text-xs text-zinc-400 font-medium">%</span>
@@ -557,12 +594,12 @@ export default function ProductoNuevoPage() {
                       <div className="space-y-0.5">
                         <span className="font-medium text-zinc-500 text-[10px] block uppercase">Regla {idx + 1}</span>
                         <span className="font-mono text-zinc-800 font-medium">
-                          {regla.rangoInicio} - {regla.rangoFin} und.
+                          {regla.rangoMinimo} - {regla.rangoMaximo} und.
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded font-mono font-bold">
-                          {regla.porcentajeDescuento.toFixed(2)}%
+                          {regla.porcentaje.toFixed(2)}%
                         </span>
                         <Button
                           type="button"

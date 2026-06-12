@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {Bell, ChevronLeft, ChevronRight, Eye, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, X} from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Eye, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  filtrarProductos, 
-  listarCategorias, 
-  activarProducto, 
-  desactivarProducto,
-  type Producto, 
-  type Categoria, 
-  type EstadoProducto 
+import {
+  filtrarProductos,
+  listarCategorias,
+  type Producto,
+  type Categoria,
+  type EstadoProducto
 } from "@/api/productosApi";
 
 // Función auxiliar para los colores de las etiquetas de estado
@@ -19,8 +17,6 @@ function estadoClass(estado: EstadoProducto) {
   switch (estado) {
     case "ACTIVO":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "AGOTADO":
-      return "bg-rose-50 text-rose-700 border-rose-200";
     case "INACTIVO":
       return "bg-zinc-100 text-zinc-500 border-zinc-200";
     default:
@@ -95,7 +91,7 @@ export default function InventarioPage() {
 
       if (prod.variantes && prod.variantes.length > 0) {
         prod.variantes.forEach((v) => {
-          const colorKey = v.color || "Único";
+          const colorKey = v.color?.nombre || "Único";
           if (!variantesPorColor[colorKey]) {
             variantesPorColor[colorKey] = [];
           }
@@ -109,10 +105,11 @@ export default function InventarioPage() {
       // Creamos una fila independiente en la tabla por cada combinación de color
       Object.entries(variantesPorColor).forEach(([color, listaVariantes]) => {
         const stockTotalColor = listaVariantes!.reduce((acc, v) => acc + v.stockDisponible, 0);
-
+        const idColorFila = listaVariantes && listaVariantes.length > 0 ? listaVariantes[0].idColor : null;
         filas.push({
           ...prod,
           colorExclusivo: color,
+          idColor: idColorFila,
           tallasAsociadas: listaVariantes, // Arreglo de variantes con sus tallas y stocks
           stockTotalColor,
         });
@@ -124,7 +121,7 @@ export default function InventarioPage() {
 
   return (
     <section className="min-h-screen bg-[#f7f5f2] flex flex-col w-full">
-      
+
       {/* Topbar superior */}
       <header className="flex h-[72px] items-center justify-between border-b border-zinc-200 bg-white px-8">
         <div className="font-extrabold text-lg tracking-wider text-zinc-800">
@@ -144,7 +141,7 @@ export default function InventarioPage() {
 
       {/* Contenido principal */}
       <main className="flex-1 p-8">
-        
+
         {/* Cabecera de página */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-zinc-800 mb-1">
@@ -154,7 +151,7 @@ export default function InventarioPage() {
 
         {/* Tarjeta de la Tabla */}
         <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-          
+
           {/* Opciones de la tabla */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-zinc-100 gap-4">
             <h2 className="text-base font-bold text-zinc-800">
@@ -265,15 +262,23 @@ export default function InventarioPage() {
 
                       {/* Color */}
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-700">
-                        {fila.colorExclusivo}
+                        <div className="flex items-center gap-2">
+                          {fila.tallasAsociadas?.[0]?.color?.hexadecimal && (
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                              style={{ backgroundColor: fila.tallasAsociadas[0].color.hexadecimal }}
+                            />
+                          )}
+                          <span>{fila.colorExclusivo}</span>
+                        </div>
                       </td>
 
                       {/* Tallas y Desglose de Stock */}
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
                           {fila.tallasAsociadas.map((t: any) => (
-                            <div 
-                              key={t.idVariante} 
+                            <div
+                              key={t.idVariante}
                               className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-100 border border-zinc-200 text-xs shadow-sm"
                             >
                               <span className="font-bold text-zinc-700 uppercase">{t.talla || 'U'}:</span>
@@ -310,7 +315,9 @@ export default function InventarioPage() {
                             <Eye size={18} />
                           </button>
                           <button className="hover:text-[#087f99] transition-colors" title="Editar producto">
-                            <Pencil size={18} />
+                            <Link to={`/admin/inventario/${fila.idProducto}/editar/${fila.idColor}`} className="flex items-center gap-1 text-zinc-600 hover:text-[#087f99] transition-colors">
+                              <Pencil size={18} />
+                            </Link>
                           </button>
                           <button className="hover:text-[#087f99] transition-colors" title="Crear variantes">
                             <Palette size={18} />
@@ -330,20 +337,20 @@ export default function InventarioPage() {
           {/* Footer / Paginación */}
           <div className="flex items-center justify-between border-t border-zinc-100 p-6 bg-zinc-50/30">
             <p className="text-sm font-medium text-zinc-500">
-              Mostrando <span className="font-semibold text-zinc-800">{filasInventario.length}</span> variantes de color 
+              Mostrando <span className="font-semibold text-zinc-800">{filasInventario.length}</span> variantes de color
               {" "}(Productos del <span className="font-semibold text-zinc-800">
                 {totalElementos === 0 ? 0 : (paginaActual - 1) * productosXPagina + 1}
               </span> al <span className="font-semibold text-zinc-800">
                 {Math.min(paginaActual * productosXPagina, totalElementos)}
               </span> de <span className="font-semibold text-zinc-800">{totalElementos}</span>)
             </p>
-            
+
             <div className="flex items-center gap-3">
               {/* Botón ATRÁS */}
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-8 w-8 rounded-full border-zinc-200 text-zinc-500" 
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full border-zinc-200 text-zinc-500"
                 disabled={paginaActual === 1 || totalElementos === 0}
                 onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
               >
@@ -356,9 +363,9 @@ export default function InventarioPage() {
               </span>
 
               {/* Botón SIGUIENTE */}
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 rounded-full border-zinc-200 text-zinc-500"
                 disabled={paginaActual === totalPaginas || totalPaginas === 0}
                 onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}

@@ -1,16 +1,23 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-export type EstadoProducto = "ACTIVO" | "INACTIVO" | "AGOTADO";
+export type EstadoProducto = "ACTIVO" | "INACTIVO";
 
 export interface Categoria {
   idCategoria: number;
   nombre: string;
 }
 
+export interface Color {
+  idColor: number;
+  nombre: string;
+  hexadecimal: string;
+}
+
 export interface VarianteProducto {
   idVariante: number;
-  talla: string | null;
-  color: string | null;
+  talla: string;
+  idColor: number;
+  color: Color | null;
   stockDisponible: number;
   stockReservado: number;
   idProducto: number;
@@ -33,9 +40,9 @@ export interface Producto {
 //REGLA DE DESCUENTO
 export interface ReglaDescuento {
   idRegla: number;
-  rangoInicio: number;
-  rangoFin: number;
-  porcentajeDescuento: number;
+  rangoMinimo: number;
+  rangoMaximo: number;
+  porcentaje: number;
   idProducto: number;
 }
 
@@ -65,20 +72,23 @@ export interface ProductoRequestDTO {
   descripcion?: string;
   imagenUrl?: string;
   idCategoria: number;
+  estado?: EstadoProducto;
+  variantes?: VarianteProductoRequestDTO[];
+  reglasDescuento?: ReglaDescuentoRequestDTO[];
 }
 
 export interface VarianteProductoRequestDTO {
-  talla?: string;
-  color?: string;
+  talla: string;
+  idColor: number;
   stockDisponible: number;
   stockReservado: number;
-  idProducto: number;
+  idProducto?: number;
 }
 //REGLA DE DESCUENTO DTO
 export interface ReglaDescuentoRequestDTO {
-  rangoInicio: number;
-  rangoFin: number;
-  porcentajeDescuento: number;
+  rangoMinimo: number;
+  rangoMaximo: number;
+  porcentaje: number;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -95,7 +105,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
     try {
       const data = await response.json();
-      message = data.message ?? data.error ?? data.mensaje ?? message;
+      if (data.campos) {
+        const detail = Object.entries(data.campos)
+          .map(([field, err]) => `${field}: ${err}`)
+          .join(", ");
+        message = `${data.error || "Error de validación"}: ${detail}`;
+      } else {
+        message = data.mensaje ?? data.message ?? data.error ?? message;
+      }
     } catch {
       message = response.statusText || message;
     }
@@ -218,4 +235,18 @@ export function editarVarianteProducto(idVariante: number, data: VarianteProduct
 
 export function eliminarVarianteProducto(idVariante: number) {
   return request<void>(`/api/variantes/${idVariante}`, { method: "DELETE" });
+}
+
+//PARA REGLA DE DESCUENTO
+export function obtenerReglasPorProducto(idProducto: number) {
+  return request<ReglaDescuentoRequestDTO[]>(`/api/reglas/producto/${idProducto}`);
+}
+
+export function eliminarReglaPorProducto(idRegla: number) {
+  return request<void>(`/api/reglas/${idRegla}`, { method: "DELETE" });
+}
+
+// PARA COLORES
+export function listarColores() {
+  return request<Color[]>("/api/colores");
 }

@@ -16,10 +16,10 @@ import ComerciantesListPage from "../pages/admin/ComerciantesListPage";
 import ComerciantesEditPage from "../pages/admin/ComerciantesEditPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
 import ComerciantesCreatePage from "../pages/admin/ComerciantesCreatePage";
-
+import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
+import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 
 import ProtectedRoute from "./ProtectedRoute";
-import ProductoNuevoPage from "@/pages/admin/ProductoNuevoPage";
 
 export const router = createBrowserRouter([
   {
@@ -89,6 +89,10 @@ export const router = createBrowserRouter([
       {
         path: "inventario/crear",
         element: <ProductoNuevoPage />,
+      },
+      {
+        path: "inventario/:id/editar/:idColor",
+        element: <ProductoEditarPage />,
       },
     ],
   },
