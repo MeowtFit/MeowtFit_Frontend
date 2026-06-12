@@ -2,8 +2,11 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import CatalogDetailPage from "../pages/CatalogoDetailPage";
 import CatalogHomePage from "../pages/CatalogoHomePage";
+
+import SignUpPage from "../pages/SignUpPage";
 import LoginPage from "../pages/LoginPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
+
 import CarritoPage from "../pages/CarritoPage";
 import PedidosListPage from "../pages/PedidosListPage";
 
@@ -52,6 +55,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/signup",
+    element: <SignUpPage />,
   },
   {
     path: "/olvideContra",

@@ -104,18 +104,15 @@ export default function UserSessionMenu() {
                 Iniciar sesión
               </Link>
 
-              <button
-                type="button"
-                disabled
-                className="mt-3 flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold text-slate-400"
+              <Link
+                to="/signup"
+                onClick={() => setAbierto(false)}
+                className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50"
               >
-                <UserPlus size={16} />
+                <UserPlus size={16} className="text-[#087f99]" />
                 Registrarse
-              </button>
-
-              <p className="mt-2 text-center text-[11px] text-slate-400">
-                Registro próximamente
-              </p>
+              </Link>
+              
             </div>
           )}
         </div>
