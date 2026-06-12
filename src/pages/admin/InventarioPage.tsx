@@ -320,7 +320,9 @@ export default function InventarioPage() {
                             </Link>
                           </button>
                           <button className="hover:text-[#087f99] transition-colors" title="Crear variantes">
-                            <Palette size={18} />
+                            <Link to={`/admin/inventario/${fila.idProducto}/agregarVariante`} className="flex items-center gap-1 text-zinc-600 hover:text-[#087f99] transition-colors">
+                              <Palette size={18} />
+                            </Link>
                           </button>
                           <button className="hover:text-rose-600 transition-colors" title="Eliminar">
                             <Trash2 size={18} />
@@ -334,7 +336,7 @@ export default function InventarioPage() {
             </table>
           </div>
 
-          {/* Footer / Paginación */}
+          {/* Footer  */}
           <div className="flex items-center justify-between border-t border-zinc-100 p-6 bg-zinc-50/30">
             <p className="text-sm font-medium text-zinc-500">
               Mostrando <span className="font-semibold text-zinc-800">{filasInventario.length}</span> variantes de color
@@ -346,7 +348,6 @@ export default function InventarioPage() {
             </p>
 
             <div className="flex items-center gap-3">
-              {/* Botón ATRÁS */}
               <Button
                 variant="outline"
                 size="icon"
@@ -356,13 +357,9 @@ export default function InventarioPage() {
               >
                 <ChevronLeft size={16} />
               </Button>
-
-              {/* Indicador */}
               <span className="text-xs font-semibold text-zinc-600Este">
                 Pág. {paginaActual} de {totalPaginas === 0 ? 1 : totalPaginas}
               </span>
-
-              {/* Botón SIGUIENTE */}
               <Button
                 variant="outline"
                 size="icon"
