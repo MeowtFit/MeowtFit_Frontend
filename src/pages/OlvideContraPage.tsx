@@ -103,10 +103,6 @@ export default function OlvideContraPage() {
                         <MessageCircle size={16}/>
                         WhatsApp
                         </Button>
-                        <Button variant="outline" className="h-10 text-xs font-medium text-gray-600 border-gray-200 hover:bg-gray-50 rounded-full px-5 flex gap-2 items-center">
-                        <Mail size={16} />
-                        Soporte por Email
-                        </Button>
                     </div>
                 </div>
 
