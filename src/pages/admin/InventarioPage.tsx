@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, ChevronLeft, ChevronRight, Eye, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, X, AlertCircle } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Filter, Headset, Palette, Pencil, Plus, Search, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

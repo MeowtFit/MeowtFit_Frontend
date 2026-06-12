@@ -56,6 +56,22 @@ export default function ProductoEditarPage() {
   const [porcentajeInput, setPorcentajeInput] = useState("");
   const [errorRegla, setErrorRegla] = useState<string | null>(null);
 
+  const [modalEliminar, setModalEliminar] = useState<{
+    mostrar: boolean;
+    tipo: "ADVERTENCIA" | "CONFIRMACION";
+    elemento: "TALLA" | "REGLA" | null;
+    razonAdvertencia: "UNICA_TALLA" | "STOCK_RESERVADO" | null;
+    datosTalla: VarianteProducto | null;
+    datosRegla: { index: number; rangoMinimo: number; rangoMaximo: number; porcentaje: number } | null;
+  }>({
+    mostrar: false,
+    tipo: "CONFIRMACION",
+    elemento: null,
+    razonAdvertencia: null,
+    datosTalla: null,
+    datosRegla: null
+  });
+
   const preventInvalidCharsParaDecimal = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (["e", "E", "+", "-"].includes(e.key)) {
       e.preventDefault();
@@ -143,16 +159,49 @@ export default function ProductoEditarPage() {
     );
   };
 
-  const handleEliminarVariante = (idVariante: number) => {
+  const handleEliminarVariante = (variante: VarianteProducto) => {
     setErrorVariante(null);
     if (variantesFiltradas.length <= 1) {
-      setErrorVariante("No puedes eliminar la única talla de este color. Agrega otra talla antes de eliminar esta.");
+      setModalEliminar({
+        mostrar: true,
+        tipo: "ADVERTENCIA",
+        elemento: "TALLA",
+        razonAdvertencia: "UNICA_TALLA",
+        datosTalla: variante,
+        datosRegla: null
+      });
       return;
     }
-    if (idVariante > 0) {
-      setIdsVariantesEliminadas((prev) => [...prev, idVariante]);
+    if (variante.stockReservado > 0) {
+      setModalEliminar({
+        mostrar: true,
+        tipo: "ADVERTENCIA",
+        elemento: "TALLA",
+        razonAdvertencia: "STOCK_RESERVADO",
+        datosTalla: variante,
+        datosRegla: null
+      });
+      return;
     }
-    setVariantes((prev) => prev.filter((v) => v.idVariante !== idVariante));
+    setModalEliminar({
+      mostrar: true,
+      tipo: "CONFIRMACION",
+      elemento: "TALLA",
+      razonAdvertencia: null,
+      datosTalla: variante,
+      datosRegla: null
+    });
+  };
+
+  const ejecutarEliminacionTalla = () => {
+    const { datosTalla } = modalEliminar;
+    if (!datosTalla) return;
+
+    if (datosTalla.idVariante > 0) {
+      setIdsVariantesEliminadas((prev) => [...prev, datosTalla.idVariante]);
+    }
+    setVariantes((prev) => prev.filter((v) => v.idVariante !== datosTalla.idVariante));
+    setModalEliminar({ ...modalEliminar, mostrar: false });
   };
 
   const handleAgregarVarianteLocal = () => {
@@ -233,8 +282,25 @@ export default function ProductoEditarPage() {
   };
 
   const handleEliminarRegla = (index: number) => {
-    setReglasDescuento(reglasDescuento.filter((_, i) => i !== index));
     setErrorRegla(null);
+    const regla = reglasDescuento[index];
+    if (!regla) return;
+    setModalEliminar({
+      mostrar: true,
+      tipo: "CONFIRMACION",
+      elemento: "REGLA",
+      razonAdvertencia: null,
+      datosTalla: null,
+      datosRegla: { index, rangoMinimo: regla.rangoMinimo, rangoMaximo: regla.rangoMaximo, porcentaje: regla.porcentaje }
+    });
+  };
+
+  const ejecutarEliminacionRegla = () => {
+    const { datosRegla } = modalEliminar;
+    if (!datosRegla) return;
+    setReglasDescuento(reglasDescuento.filter((_, i) => i !== datosRegla.index));
+    setErrorRegla(null);
+    setModalEliminar({ ...modalEliminar, mostrar: false });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -538,10 +604,10 @@ export default function ProductoEditarPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEliminarVariante(variante.idVariante)}
+                            onClick={() => handleEliminarVariante(variante)}
                             className="h-8 w-8 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors mx-auto flex"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} className="text-zinc-600 hover:text-[#087f99] transition-colors" />
                           </Button>
                         </td>
 
@@ -715,7 +781,7 @@ export default function ProductoEditarPage() {
                           onClick={() => handleEliminarRegla(idx)}
                           className="h-7 w-7 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={13} className="text-zinc-600 hover:text-[#087f99] transition-colors" />
                         </Button>
                       </div>
                     </div>
@@ -726,6 +792,93 @@ export default function ProductoEditarPage() {
           </div>
         </div>
       </form>
+
+      {/* Modal de eliminación */}
+      {modalEliminar.mostrar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm transition-all duration-300 animate-in fade-in">
+          <div className="bg-white border border-zinc-200 rounded-2xl p-6 max-w-md w-full shadow-2xl mx-4 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <span className={`p-2.5 rounded-full ${modalEliminar.tipo === "ADVERTENCIA" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"}`}>
+                <AlertCircle size={24} />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">
+                  {modalEliminar.tipo === "ADVERTENCIA" ? "Acción Bloqueada" : "Confirmar Eliminación"}
+                </h3>
+              </div>
+            </div>
+
+            <div className="text-sm text-zinc-600 leading-relaxed py-2">
+              {modalEliminar.elemento === "TALLA" && modalEliminar.datosTalla && (
+                modalEliminar.tipo === "ADVERTENCIA" ? (
+                  modalEliminar.razonAdvertencia === "UNICA_TALLA" ? (
+                    <span>
+                      No se puede eliminar la talla{" "}
+                      <strong className="text-zinc-800 uppercase">"{modalEliminar.datosTalla.talla || "Única"}"</strong>{" "}
+                      porque es la <strong className="text-rose-600">única talla registrada</strong> para este color. Debe existir al menos una talla activa.
+                    </span>
+                  ) : (
+                    <span>
+                      No se puede eliminar la talla{" "}
+                      <strong className="text-zinc-800 uppercase">"{modalEliminar.datosTalla.talla || "Única"}"</strong>{" "}
+                      porque tiene{" "}
+                      <strong className="text-rose-600">{modalEliminar.datosTalla.stockReservado} unidades</strong> en stock reservado.
+                    </span>
+                  )
+                ) : (
+                  <span>
+                    ¿Estás seguro de que deseas eliminar la talla{" "}
+                    <strong className="text-zinc-800 uppercase">"{modalEliminar.datosTalla.talla || "Única"}"</strong>?
+                    <br />
+                    <span className="text-xs text-rose-500 font-semibold mt-2 block">
+                      * Esta acción removerá la talla de la lista.
+                    </span>
+                  </span>
+                )
+              )}
+
+              {modalEliminar.elemento === "REGLA" && modalEliminar.datosRegla && (
+                <span>
+                  ¿Estás seguro de que deseas eliminar la regla de descuento para el rango de{" "}
+                  <strong className="text-zinc-800">{modalEliminar.datosRegla.rangoMinimo} a {modalEliminar.datosRegla.rangoMaximo} unidades</strong> con{" "}
+                  <strong className="text-zinc-800">{modalEliminar.datosRegla.porcentaje}% de descuento</strong>?
+                  <br />
+                  <span className="text-xs text-rose-500 font-semibold mt-2 block">
+                    * Esta acción es reversible antes de guardar los cambios del producto.
+                  </span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-100">
+              {modalEliminar.tipo === "ADVERTENCIA" ? (
+                <Button
+                  onClick={() => setModalEliminar({ ...modalEliminar, mostrar: false })}
+                  className="bg-[#087f99] hover:bg-[#066a80] text-white px-5 font-semibold"
+                >
+                  Entendido
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setModalEliminar({ ...modalEliminar, mostrar: false })}
+                    className="border-zinc-200 text-zinc-500 hover:bg-zinc-50 font-semibold"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={modalEliminar.elemento === "TALLA" ? ejecutarEliminacionTalla : ejecutarEliminacionRegla}
+                    className="bg-rose-600 hover:bg-rose-700 text-white px-5 font-semibold"
+                  >
+                    Eliminar
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
