@@ -9,17 +9,38 @@ import logoMeowtfit from "../assets/logo.png"
 
 export default function OlvideContraPage() {
     const [identifier, setIdentifier] = useState("")
+    const [isLoading, setIsLoading] = useState(false)
+    const [message, setMessage] = useState("")
+    const [error, setError] = useState("")
     const navigate = useNavigate()
 
-    const handleRecover = (e: React.FormEvent) => {
-    e.preventDefault()
-    // --- AQUÍ IRÍA TU LÓGICA REAL ---
-    // Llamada a la API para enviar el correo de recuperación
-    console.log("Solicitando recuperación para:", identifier)
+    const handleRecover = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+        setMessage("")
+        setError("")
 
-    // Ejemplo de redirección tras éxito:
-    // alert("Enlace enviado a tu correo.")
-    // navigate("/login")
+        try {
+            const response = await fetch("http://localhost:8080/api/auth/recuperar-password/solicitar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ correo: identifier })
+            })
+
+            const data = await response.json()
+
+            if (response.ok) {
+                setMessage(data.mensaje || "Enlace enviado a tu correo.")
+            } else {
+                setError(data.mensaje || "Ocurrió un error al procesar la solicitud.")
+            }
+        } catch (err) {
+            setError("Error de red. Asegúrate de que el servidor esté ejecutándose.")
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     return (
@@ -90,9 +111,24 @@ export default function OlvideContraPage() {
                 </div>
 
                 {/* Botón Principal */}
-                <Button className="w-full h-12 bg-[#0a7c98] hover:bg-[#086379] text-white text-xs font-bold tracking-wide rounded-md transition-colors">
-                    ENVIAR ENLACE DE RECUPERACIÓN
+                <Button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-12 bg-[#0a7c98] hover:bg-[#086379] text-white text-xs font-bold tracking-wide rounded-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
+                    {isLoading ? "ENVIANDO..." : "ENVIAR ENLACE DE RECUPERACIÓN"}
                 </Button>
+
+                {/* Mensajes de feedback */}
+                {message && (
+                    <div className="p-3 bg-green-50 text-green-700 text-sm rounded-md border border-green-200 text-center">
+                        {message}
+                    </div>
+                )}
+                {error && (
+                    <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200 text-center">
+                        {error}
+                    </div>
+                )}
                 </form>
 
                 {/* Sección de Ayuda Adicional */}

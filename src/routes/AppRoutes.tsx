@@ -6,6 +6,7 @@ import CatalogHomePage from "../pages/CatalogoHomePage";
 import SignUpPage from "../pages/SignUpPage";
 import LoginPage from "../pages/LoginPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
+import RecuperarContraPage from "../pages/RecuperarContraPage";
 
 import CarritoPage from "../pages/CarritoPage";
 import PedidosListPage from "../pages/PedidosListPage";
@@ -63,6 +64,10 @@ export const router = createBrowserRouter([
   {
     path: "/olvideContra",
     element: <OlvideContraPage />,
+  },
+  {
+    path: "/recuperar-password",
+    element: <RecuperarContraPage />,
   },
   {
     path: "/admin",
