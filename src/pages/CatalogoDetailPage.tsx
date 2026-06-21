@@ -4,12 +4,8 @@ import {
   ChevronLeft,
   Minus,
   Plus,
-  Search,
-  ShoppingCart,
   Truck,
 } from "lucide-react";
-
-import UserSessionMenu from "@/components/layout/UserSessionMenu";
 
 import { Button } from "@/components/ui/button";
 import {

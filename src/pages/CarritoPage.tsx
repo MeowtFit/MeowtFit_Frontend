@@ -3,12 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Minus,
   Plus,
-  Search,
-  ShoppingCart,
   Trash2,
 } from "lucide-react";
-
-import UserSessionMenu from "@/components/layout/UserSessionMenu";
 import logoMeowtfit from "../assets/logo.png";
 
 import {
@@ -232,7 +228,6 @@ export default function CarritoPage() {
 
     try {
       await actualizarLineaCarrito(item.linea.idLineaCarrito, {
-        shadowOpacity: 0,
         cantidad: nuevaCantidad,
         precioUnitario: item.linea.precioUnitario,
         subtotal: nuevoSubtotal,

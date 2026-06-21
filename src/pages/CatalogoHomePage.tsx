@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   Search,
-  ShoppingCart,
 } from "lucide-react";
-
-import UserSessionMenu from "@/components/layout/UserSessionMenu";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +14,7 @@ import {
   type Producto,
 } from "@/api/catalogoApi";
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const PAGE_SIZE = 6;
 
@@ -55,8 +51,6 @@ function obtenerRolCatalogo(): string | null {
 }
 
 export default function CatalogHomePage() {
-  const navigate = useNavigate();
-  const rolActual = obtenerRolCatalogo();
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
