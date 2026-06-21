@@ -43,12 +43,6 @@ function formatearPrecio(precio: number) {
   }).format(precio);
 }
 
-function obtenerRolCatalogo(): string | null {
-  return (
-    localStorage.getItem("meowtfit_rol") ||
-    sessionStorage.getItem("meowtfit_rol")
-  );
-}
 
 export default function CatalogHomePage() {
 
