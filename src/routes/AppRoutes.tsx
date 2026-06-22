@@ -31,6 +31,17 @@ import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage"
 
 import ProtectedRoute from "./ProtectedRoute";
 
+function AdminIndexRedirect() {
+  const rol =
+    localStorage.getItem("meowtfit_rol") ||
+    sessionStorage.getItem("meowtfit_rol");
+
+  if (rol === "ADMINISTRADOR") {
+    return <Navigate to="/admin/comerciantes" replace />;
+  }
+  return <Navigate to="/admin/inventario" replace />;
+}
+
 export const router = createBrowserRouter([
   {
     element: <CatalogLayout />,
@@ -72,14 +83,14 @@ export const router = createBrowserRouter([
   {
     path: "/admin",
     element: (
-      <ProtectedRoute requiredRole="ADMINISTRADOR">
+      <ProtectedRoute allowedRoles={["ADMINISTRADOR", "COMERCIANTE"]}>
         <AdminLayout />
       </ProtectedRoute>
     ),
     children: [
       {
         index: true,
-        element: <Navigate to="/admin/comerciantes" replace />,
+        element: <AdminIndexRedirect />,
       },
       {
         path: "dashboard",
@@ -111,19 +122,35 @@ export const router = createBrowserRouter([
       },
       {
         path: "comerciantes",
-        element: <ComerciantesPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <ComerciantesPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "comerciantes/listar",
-        element: <ComerciantesListPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <ComerciantesListPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "comerciantes/crear",
-        element: <ComerciantesCreatePage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <ComerciantesCreatePage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "comerciantes/:id/editar",
-        element: <ComerciantesEditPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <ComerciantesEditPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "configuracion",

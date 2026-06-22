@@ -59,13 +59,23 @@ export default function Sidebar() {
 
     const navigate = useNavigate();
 
+    const rol =
+        localStorage.getItem("meowtfit_rol") ||
+        sessionStorage.getItem("meowtfit_rol");
+
+    const options = sidebarOptions.filter((option) => {
+        if (option.path.includes("comerciantes") && rol !== "ADMINISTRADOR") {
+            return false;
+        }
+        return true;
+    });
+
     function handleLogout() {
         localStorage.removeItem("meowtfit_correo");
         localStorage.removeItem("meowtfit_rol");
 
         navigate("/login", { replace: true });
     }
-
 
     return (
         <aside className="fixed left-0 top-0 z-40 flex h-screen w-[235px] flex-col justify-between border-2 border-cyan-500 bg-[#087f99] px-4 py-5 text-white">
@@ -81,7 +91,7 @@ export default function Sidebar() {
                 </div>
 
                 <nav className="flex flex-col gap-2">
-                    {sidebarOptions.map((option) => {
+                    {options.map((option) => {
                         const Icon = option.icon;
 
                         return (
@@ -110,9 +120,11 @@ export default function Sidebar() {
                     </div>
 
                     <div>
-                        <h3 className="text-sm font-bold leading-none">Admin Meowtfit</h3>
-                        <p className="mt-1 text-[9px] font-bold tracking-[0.08em] text-cyan-100/75">
-                            SUPER USER MEOW
+                        <h3 className="text-sm font-bold leading-none">
+                            {rol === "ADMINISTRADOR" ? "Admin Meowtfit" : "Comerciante"}
+                        </h3>
+                        <p className="mt-1 text-[9px] font-bold tracking-[0.08em] text-cyan-100/75 uppercase">
+                            {rol === "ADMINISTRADOR" ? "SUPER USER MEOW" : "VENDEDOR MEOW"}
                         </p>
                     </div>
                 </div>
