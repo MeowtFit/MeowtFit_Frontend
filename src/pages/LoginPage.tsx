@@ -63,7 +63,7 @@ export default function LoginPage() {
       }
 
       if (rolNormalizado === "COMERCIANTE") {
-        navigate("/admin/comerciantes", { replace: true });
+        navigate("/admin/inventario", { replace: true });
         return;
       }
 
