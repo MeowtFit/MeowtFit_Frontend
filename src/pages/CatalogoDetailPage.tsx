@@ -20,7 +20,7 @@ import {
   obtenerOCrearCarritoActivo,
 } from "@/api/carritoApi";
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";

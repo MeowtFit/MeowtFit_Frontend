@@ -37,7 +37,7 @@ export default function RecuperarContraPage() {
         setError("")
 
         try {
-            const response = await fetch("http://localhost:8080/api/auth/recuperar-password/confirmar", {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/auth/recuperar-password/confirmar`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
