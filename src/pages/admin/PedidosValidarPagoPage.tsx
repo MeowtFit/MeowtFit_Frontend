@@ -109,7 +109,7 @@ export default function PedidosValidarPagoPage() {
             setErrorAccion(null);
             setExitoAccion(null);
 
-            await cambiarEstadoPedido(pedido.idPedido, "PAGO_RECHAZADO");
+            await cambiarEstadoPedido(pedido.idPedido, "PAGO_RECHAZADO", motivoRechazo);
 
             console.log(`Pedido #${pedido.idPedido} rechazado por: ${motivoRechazo}`);
 
@@ -194,7 +194,6 @@ export default function PedidosValidarPagoPage() {
             await verificarPago(pedido.idPedido);
             setExitoAccion("¡Pago verificado y confirmado con éxito!");
 
-            // Actualizar el estado del pedido localmente
             setPedido((prev) =>
                 prev ? { ...prev, estado: "CONFIRMADO" as EstadoPedido } : null
             );
