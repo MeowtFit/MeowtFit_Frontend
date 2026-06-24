@@ -19,6 +19,15 @@ import {
 } from "@/api/productosApi";
 import { obtenerConfiguracionNegocio, type ConfiguracionNegocio } from "@/api/configuracionApi";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function normalizarImagen(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return url;
+}
+
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
   'vestidos': ['S', 'M', 'L', 'XL'],
@@ -473,7 +482,7 @@ export default function ProductoEditarPage() {
               {imagenUrl.trim() && (
                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden mt-3">
                   <img
-                    src={imagenUrl}
+                    src={normalizarImagen(imagenUrl)}
                     alt="Vista previa del producto"
                     className="max-h-full object-contain rounded"
                     onError={(e) => {
