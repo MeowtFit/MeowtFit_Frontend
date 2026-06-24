@@ -17,6 +17,7 @@ import {
   type ProductoRequestDTO,
   type ReglaDescuentoRequestDTO
 } from "@/api/productosApi";
+import { obtenerConfiguracionNegocio, type ConfiguracionNegocio } from "@/api/configuracionApi";
 
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
@@ -34,6 +35,7 @@ export default function ProductoEditarPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configuracion, setConfiguracion] = useState<ConfiguracionNegocio | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -109,6 +111,13 @@ export default function ProductoEditarPage() {
 
         setImagenUrl(dataProducto.imagenUrl || "");
         setEstado(dataProducto.estado || "ACTIVO");
+
+        try {
+          const dataConfig = await obtenerConfiguracionNegocio();
+          setConfiguracion(dataConfig);
+        } catch (errConfig) {
+          console.warn("No se pudo cargar la configuración de negocio:", errConfig);
+        }
 
         try {
           const dataVariantes = await obtenerVariantesPorProducto(Number(id));
@@ -257,6 +266,10 @@ export default function ProductoEditarPage() {
       setErrorRegla("El rango inicial no puede ser mayor que el rango final.");
       return;
     }
+    if (configuracion && max >= configuracion.stockMinimoCotizacion) {
+      setErrorRegla(`El rango final (${max}) no puede superar el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
     if (porcentaje > 100) {
       setErrorRegla("El porcentaje no puede ser mayor a 100%.");
       return;
@@ -309,6 +322,11 @@ export default function ProductoEditarPage() {
 
     if (!nombre.trim() || !precioBase || !idCategoria) {
       setError("Por favor, completa los campos obligatorios (*).");
+      return;
+    }
+
+    if (configuracion && reglasDescuento.some(r => r.rangoMaximo >= configuracion.stockMinimoCotizacion)) {
+      setError(`Hay reglas de descuento cuyo rango final supera el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
       return;
     }
 
@@ -669,12 +687,43 @@ export default function ProductoEditarPage() {
             </div>
           </div>
 
+          {/* Configuración de Negocio */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Configuración de Negocio</h2>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                Valores establecidos para el stock mínimo de cotización y precio piso.
+              </p>
+            </div>
+            {configuracion ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Stock Mínimo Cotización</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.stockMinimoCotizacion} und
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Porcentaje Precio Piso</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.porcentajePrecioPiso}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="animate-spin text-[#087f99] h-5 w-5 mr-2" />
+                <span className="text-xs text-zinc-500 italic">Cargando configuración de negocio...</span>
+              </div>
+            )}
+          </div>
+
           {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Reglas de Descuento</h2>
               <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                Establece escalas de descuento según la cantidad total de unidades compradas.
+                Establece escalas de descuento según la cantidad total de unidades compradas. El rango no debe superar el stock minimo de cotización.
               </p>
             </div>
 

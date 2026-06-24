@@ -12,6 +12,7 @@ import {
   type ReglaDescuentoRequestDTO,
   type ProductoRequestDTO,
 } from "@/api/productosApi";
+import { obtenerConfiguracionNegocio, type ConfiguracionNegocio } from "@/api/configuracionApi";
 
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
@@ -29,6 +30,7 @@ export default function ProductoNuevoPage() {
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configuracion, setConfiguracion] = useState<ConfiguracionNegocio | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -62,15 +64,16 @@ export default function ProductoNuevoPage() {
   };
 
   useEffect(() => {
-    Promise.all([listarCategorias(), listarColores()])
-      .then(([dataCategorias, dataColores]) => {
+    Promise.all([listarCategorias(), listarColores(), obtenerConfiguracionNegocio()])
+      .then(([dataCategorias, dataColores, dataConfig]) => {
         setCategorias(dataCategorias);
         setColores(dataColores);
+        setConfiguracion(dataConfig);
         setCargandoCategorias(false);
       })
       .catch((err) => {
         console.error("Error al cargar datos iniciales:", err);
-        setError("No se pudieron cargar las categorías o colores del servidor.");
+        setError("No se pudieron cargar las categorías, colores o la configuración de negocio del servidor.");
         setCargandoCategorias(false);
       });
   }, []);
@@ -144,6 +147,11 @@ export default function ProductoNuevoPage() {
       return;
     }
 
+    if (configuracion && fin >= configuracion.stockMinimoCotizacion) {
+      setErrorRegla(`El rango final (${fin}) no puede superar el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
+
     if (porcentaje > 100) {
       setErrorRegla("El porcentaje de descuento no puede ser mayor a 100%.");
       return;
@@ -183,6 +191,11 @@ export default function ProductoNuevoPage() {
 
     if (variantes.length === 0) {
       setError("Debes agregar al menos una variante (Talla/Color/Stock) para el producto.");
+      return;
+    }
+
+    if (configuracion && reglasDescuento.some(r => r.rangoMaximo >= configuracion.stockMinimoCotizacion)) {
+      setError(`Hay reglas de descuento cuyo rango final supera el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
       return;
     }
 
@@ -480,12 +493,43 @@ export default function ProductoNuevoPage() {
             </div>
           </div>
 
+          {/* Configuración de Negocio */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Configuración de Negocio</h2>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                Valores establecidos para el stock mínimo de cotización y precio piso.
+              </p>
+            </div>
+            {configuracion ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Stock Mínimo Cotización</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.stockMinimoCotizacion} und
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Porcentaje Precio Piso</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.porcentajePrecioPiso}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="animate-spin text-[#087f99] h-5 w-5 mr-2" />
+                <span className="text-xs text-zinc-500 italic">Cargando configuración de negocio...</span>
+              </div>
+            )}
+          </div>
+
           {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">4. Reglas de Descuento</h2>
               <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                Establece escalas de descuento según la cantidad total de unidades compradas.
+                Establece escalas de descuento según la cantidad total de unidades compradas. El rango no debe superar el stock minimo de cotización.
               </p>
             </div>
 

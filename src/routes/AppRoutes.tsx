@@ -24,6 +24,8 @@ import CotizacionesPage from "../pages/admin/CotizacionesPage";
 import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
+import PedidosGestionPage from "../pages/admin/PedidosGestionPage";
+import PedidosValidarPagoPage from "../pages/admin/PedidosValidarPagoPage";
 
 import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
 import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
@@ -119,6 +121,14 @@ export const router = createBrowserRouter([
       {
         path: "cotizaciones",
         element: <CotizacionesPage />,
+      },
+      {
+        path: "pedidos",
+        element: <PedidosGestionPage />
+      },
+      {
+        path: "pedidos/validarPago/:id",
+        element: <PedidosValidarPagoPage />
       },
       {
         path: "comerciantes",

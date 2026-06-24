@@ -90,22 +90,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function adaptarPedido(pedido: Pedido): Pedido {
+async function adaptarPedido(pedido: Pedido): Promise<Pedido> {
+  const lineasConImagenes = await Promise.all(
+    pedido.lineas.map(async (linea) => {
+      let imagenUrl: string | null = null;
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/variantes/${linea.idVariante}`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const variantData = await response.json();
+          imagenUrl = variantData.producto?.imagenUrl ?? null;
+        }
+      } catch (e) {
+        console.error(`Error al obtener imagen para variante ${linea.idVariante}:`, e);
+      }
+
+      return {
+        ...linea,
+        variante: {
+          idVariante: linea.idVariante,
+          nombreProducto: linea.nombreProducto,
+          talla: linea.talla,
+          color: linea.color,
+          imagenUrl: imagenUrl,
+        },
+      };
+    })
+  );
+
   return {
     ...pedido,
     idFactura: pedido.idFactura ?? null,
     tieneComprobante: pedido.tieneComprobante ?? false,
     archivoComprobante: pedido.archivoComprobante ?? null,
-    lineas: pedido.lineas.map((linea) => ({
-      ...linea,
-      variante: {
-        idVariante: linea.idVariante,
-        nombreProducto: linea.nombreProducto,
-        talla: linea.talla,
-        color: linea.color,
-        imagenUrl: null,
-      },
-    })),
+    lineas: lineasConImagenes,
   };
 }
 
@@ -115,19 +134,25 @@ export async function crearPedido(data: CrearPedidoRequest) {
     body: JSON.stringify(data),
   });
 
-  return adaptarPedido(pedido);
+  return await adaptarPedido(pedido);
 }
 
 export async function listarMisPedidos() {
   const pedidos = await request<Pedido[]>("/api/pedidos/mis-pedidos");
 
-  return pedidos.map(adaptarPedido);
+  return Promise.all(pedidos.map(adaptarPedido));
 }
 
 export async function listarTodosPedidos() {
   const pedidos = await request<Pedido[]>("/api/pedidos");
 
-  return pedidos.map(adaptarPedido);
+  return Promise.all(pedidos.map(adaptarPedido));
+}
+
+export async function obtenerPedidoPorId(idPedido: number) {
+  const pedido = await request<Pedido>(`/api/pedidos/${idPedido}`);
+
+  return await adaptarPedido(pedido);
 }
 
 export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido) {
@@ -142,6 +167,18 @@ export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido)
 // Tu PedidosListPage usa verificarPago(idPedido), así que dejo este wrapper.
 export function verificarPago(idPedido: number) {
   return cambiarEstadoPedido(idPedido, "CONFIRMADO");
+}
+
+export async function obtenerComprobantePorPedido(idPedido: number): Promise<ComprobantePagoDTO | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/pedido/${idPedido}`, {
+      credentials: "include",
+    });
+    if (!response.ok) return null;
+    return await response.json() as ComprobantePagoDTO;
+  } catch {
+    return null;
+  }
 }
 
 export type ComprobantePagoDTO = {
@@ -174,4 +211,23 @@ export async function subirComprobante(idPedido: number, archivo: File): Promise
   }
 
   return response.json() as Promise<ComprobantePagoDTO>;
+}
+
+export async function descargarComprobanteArchivo(idComprobante: number): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/${idComprobante}/archivo`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo descargar el archivo del comprobante";
+    try {
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(`${response.status} ${message}`);
+  }
+
+  return response.blob();
 }
