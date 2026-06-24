@@ -90,22 +90,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function adaptarPedido(pedido: Pedido): Pedido {
+async function adaptarPedido(pedido: Pedido): Promise<Pedido> {
+  const lineasConImagenes = await Promise.all(
+    pedido.lineas.map(async (linea) => {
+      let imagenUrl: string | null = null;
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/variantes/${linea.idVariante}`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const variantData = await response.json();
+          imagenUrl = variantData.producto?.imagenUrl ?? null;
+        }
+      } catch (e) {
+        console.error(`Error al obtener imagen para variante ${linea.idVariante}:`, e);
+      }
+
+      return {
+        ...linea,
+        variante: {
+          idVariante: linea.idVariante,
+          nombreProducto: linea.nombreProducto,
+          talla: linea.talla,
+          color: linea.color,
+          imagenUrl: imagenUrl,
+        },
+      };
+    })
+  );
+
   return {
     ...pedido,
     idFactura: pedido.idFactura ?? null,
     tieneComprobante: pedido.tieneComprobante ?? false,
     archivoComprobante: pedido.archivoComprobante ?? null,
-    lineas: pedido.lineas.map((linea) => ({
-      ...linea,
-      variante: {
-        idVariante: linea.idVariante,
-        nombreProducto: linea.nombreProducto,
-        talla: linea.talla,
-        color: linea.color,
-        imagenUrl: null,
-      },
-    })),
+    lineas: lineasConImagenes,
   };
 }
 
@@ -115,25 +134,25 @@ export async function crearPedido(data: CrearPedidoRequest) {
     body: JSON.stringify(data),
   });
 
-  return adaptarPedido(pedido);
+  return await adaptarPedido(pedido);
 }
 
 export async function listarMisPedidos() {
   const pedidos = await request<Pedido[]>("/api/pedidos/mis-pedidos");
 
-  return pedidos.map(adaptarPedido);
+  return Promise.all(pedidos.map(adaptarPedido));
 }
 
 export async function listarTodosPedidos() {
   const pedidos = await request<Pedido[]>("/api/pedidos");
 
-  return pedidos.map(adaptarPedido);
+  return Promise.all(pedidos.map(adaptarPedido));
 }
 
 export async function obtenerPedidoPorId(idPedido: number) {
   const pedido = await request<Pedido>(`/api/pedidos/${idPedido}`);
 
-  return adaptarPedido(pedido);
+  return await adaptarPedido(pedido);
 }
 
 export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido) {
