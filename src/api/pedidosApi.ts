@@ -130,6 +130,12 @@ export async function listarTodosPedidos() {
   return pedidos.map(adaptarPedido);
 }
 
+export async function obtenerPedidoPorId(idPedido: number) {
+  const pedido = await request<Pedido>(`/api/pedidos/${idPedido}`);
+
+  return adaptarPedido(pedido);
+}
+
 export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido) {
   return request<Pedido>(
     `/api/pedidos/${idPedido}/estado?nuevoEstado=${nuevoEstado}`,
@@ -142,6 +148,18 @@ export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido)
 // Tu PedidosListPage usa verificarPago(idPedido), así que dejo este wrapper.
 export function verificarPago(idPedido: number) {
   return cambiarEstadoPedido(idPedido, "CONFIRMADO");
+}
+
+export async function obtenerComprobantePorPedido(idPedido: number): Promise<ComprobantePagoDTO | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/pedido/${idPedido}`, {
+      credentials: "include",
+    });
+    if (!response.ok) return null;
+    return await response.json() as ComprobantePagoDTO;
+  } catch {
+    return null;
+  }
 }
 
 export type ComprobantePagoDTO = {
@@ -174,4 +192,23 @@ export async function subirComprobante(idPedido: number, archivo: File): Promise
   }
 
   return response.json() as Promise<ComprobantePagoDTO>;
+}
+
+export async function descargarComprobanteArchivo(idComprobante: number): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/${idComprobante}/archivo`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo descargar el archivo del comprobante";
+    try {
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(`${response.status} ${message}`);
+  }
+
+  return response.blob();
 }

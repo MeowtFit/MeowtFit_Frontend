@@ -25,8 +25,6 @@ export default function ProtectedRoute({
   }
 
   if (allowedRoles && !allowedRoles.includes(rol)) {
-    // Si el usuario ya está autenticado pero no tiene el rol permitido para esta subruta,
-    // lo redirigimos a su página de inicio segura en lugar de cerrar su sesión.
     if (rol === "ADMINISTRADOR") {
       return <Navigate to="/admin/comerciantes" replace />;
     }
@@ -34,7 +32,6 @@ export default function ProtectedRoute({
       return <Navigate to="/admin/inventario" replace />;
     }
 
-    // Para cualquier otro rol no autorizado (ej. CLIENTE en rutas de admin), cerramos sesión.
     localStorage.removeItem("meowtfit_correo");
     localStorage.removeItem("meowtfit_rol");
     sessionStorage.removeItem("meowtfit_correo");

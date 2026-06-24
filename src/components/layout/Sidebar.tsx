@@ -34,6 +34,11 @@ const sidebarOptions: SidebarOption[] = [
         icon: Boxes,
     },
     {
+        label: "Pedidos",
+        path: "/admin/pedidos",
+        icon: ShoppingBag,
+    },
+    {
         label: "Ventas",
         path: "/admin/ventas",
         icon: ChartColumn,
