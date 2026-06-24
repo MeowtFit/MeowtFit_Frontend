@@ -14,6 +14,15 @@ import {
     type VarianteProducto,
 } from "@/api/productosApi";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function normalizarImagen(url?: string | null): string {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+    return url;
+}
+
 // Diccionario de tallas dinámicas
 const OPCIONES_TALLAS: Record<string, string[]> = {
     'blusas': ['S', 'M', 'L', 'XL'],
@@ -303,7 +312,7 @@ export default function ProductoNuevaVariantePage() {
                                 <label className="text-xs font-medium text-zinc-500">Imagen</label>
                                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden">
                                     <img
-                                        src={imagenUrl}
+                                        src={normalizarImagen(imagenUrl)}
                                         alt="Vista previa del producto"
                                         className="max-h-full object-contain rounded opacity-75"
                                         onError={(e) => {

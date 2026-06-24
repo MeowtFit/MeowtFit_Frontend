@@ -13,6 +13,15 @@ import {
   type EstadoProducto
 } from "@/api/productosApi";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function normalizarImagen(url?: string | null): string {
+  if (!url) return "https://placehold.co/80x100?text=Sin+imagen";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return url;
+}
+
 function estadoClass(estado: EstadoProducto) {
   switch (estado) {
     case "ACTIVO":
@@ -299,7 +308,7 @@ export default function InventarioPage() {
                     <tr key={`${fila.idProducto}-${fila.colorExclusivo}-${index}`} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img
-                          src={fila.imagenUrl}
+                          src={normalizarImagen(fila.imagenUrl)}
                           alt={fila.nombre}
                           className="w-11 h-14 object-cover rounded-md bg-zinc-100 border border-zinc-100 shadow-sm"
                         />
