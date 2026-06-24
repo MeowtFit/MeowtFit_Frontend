@@ -2,9 +2,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, MessageCircle, Mail, Info } from "lucide-react"
+import { ArrowLeft, MessageCircle, Info } from "lucide-react"
 import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import logoMeowtfit from "../assets/logo.png"
 
 export default function OlvideContraPage() {
@@ -21,7 +21,7 @@ export default function OlvideContraPage() {
         setError("")
 
         try {
-            const response = await fetch("http://localhost:8080/api/auth/recuperar-password/solicitar", {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/auth/recuperar-password/solicitar`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
