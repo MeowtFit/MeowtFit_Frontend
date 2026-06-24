@@ -97,10 +97,10 @@ export default function OlvideContraPage() {
                 <form className="space-y-6" onSubmit={handleRecover}>
                 <div className="space-y-2">
                     <Label htmlFor="identifier" className="text-xs font-bold text-[#b43b6c] uppercase tracking-wider">
-                    Correo electrónico o DNI
+                    Correo electrónico
                     </Label>
                     <Input id="identifier" type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="ejemplo@correo.com o 12345678"
+                    placeholder="ejemplo@correo.com"
                     className="h-12 bg-[#f9fafb] border-gray-200 focus-visible:ring-[#0a7c98] placeholder:text-gray-400 text-sm"
                     required
                     />
