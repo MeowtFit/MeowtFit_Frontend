@@ -214,6 +214,13 @@ export async function subirComprobante(idPedido: number, archivo: File): Promise
   return response.json() as Promise<ComprobantePagoDTO>;
 }
 
+export async function eliminarComprobante(idComprobante: number): Promise<void> {
+  await request<void>(`/api/comprobantes-pago/${idComprobante}`, {
+    method: "DELETE",
+  });
+}
+
+
 export async function descargarComprobanteArchivo(idComprobante: number): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/${idComprobante}/archivo`, {
     credentials: "include",

@@ -15,6 +15,9 @@ import {
   listarTodosPedidos,
   subirComprobante,
   verificarPago,
+  cambiarEstadoPedido,
+  obtenerComprobantePorPedido,
+  eliminarComprobante,
   type EstadoPedido,
   type Pedido,
 } from "@/api/pedidosApi";
@@ -58,7 +61,7 @@ function formatearFecha(fecha: string): string {
 }
 
 function codigoFactura(pedido: Pedido): string {
-  const num = pedido.idFactura ?? pedido.idPedido;
+  const num = pedido.idPedido;
   return `F${String(num).padStart(3, "0")}`;
 }
 
@@ -107,7 +110,30 @@ export default function PedidosListPage() {
           ? await listarTodosPedidos()
           : await listarMisPedidos();
 
-      setPedidos(data);
+      const dataConComprobantes = await Promise.all(
+        data.map(async (p) => {
+          try {
+            const cp = await obtenerComprobantePorPedido(p.idPedido);
+            if (cp) {
+              return {
+                ...p,
+                tieneComprobante: true,
+                archivoComprobante: cp.archivo,
+                idFactura: cp.idComprobante,
+              };
+            }
+          } catch (e) {
+            console.error("Error al obtener comprobante:", e);
+          }
+          return {
+            ...p,
+            tieneComprobante: false,
+            archivoComprobante: null,
+          };
+        })
+      );
+
+      setPedidos(dataConComprobantes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar pedidos.");
     } finally {
@@ -164,11 +190,27 @@ export default function PedidosListPage() {
       setSubiendoComprobante(true);
       setErrorModal(null);
 
-      await subirComprobante(modalPedido.idPedido, archivoSeleccionado);
+      if (modalPedido.estado === "PAGO_RECHAZADO" && modalPedido.idFactura) {
+        try {
+          await eliminarComprobante(modalPedido.idFactura);
+        } catch (e) {
+          console.error("Error al eliminar comprobante anterior:", e);
+        }
+      }
+
+      const cp = await subirComprobante(modalPedido.idPedido, archivoSeleccionado);
+
+      let nuevoEstado = modalPedido.estado;
+      if (modalPedido.estado === "PAGO_RECHAZADO") {
+        await cambiarEstadoPedido(modalPedido.idPedido, "REGISTRADO");
+        nuevoEstado = "REGISTRADO";
+      }
 
       const pedidoActualizado = {
         ...modalPedido,
         tieneComprobante: true,
+        estado: nuevoEstado,
+        idFactura: cp.idComprobante,
       };
 
       setPedidos((prev) =>
@@ -343,11 +385,10 @@ export default function PedidosListPage() {
 
                         <td className="px-5 py-4">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${
-                              cancelado
-                                ? "bg-red-50 text-red-500"
-                                : "bg-cyan-50 text-[#087f99]"
-                            }`}
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${cancelado
+                              ? "bg-red-50 text-red-500"
+                              : "bg-cyan-50 text-[#087f99]"
+                              }`}
                           >
                             {pedido.estado}
                           </span>
@@ -427,11 +468,10 @@ export default function PedidosListPage() {
               <p className="mt-1 text-sm text-slate-500">
                 Fecha: {formatearFecha(modalPedido.fechaHoraRegistro)} · Estado:{" "}
                 <span
-                  className={`font-semibold ${
-                    esCancelado(modalPedido.estado)
-                      ? "text-red-500"
-                      : "text-[#087f99]"
-                  }`}
+                  className={`font-semibold ${esCancelado(modalPedido.estado)
+                    ? "text-red-500"
+                    : "text-[#087f99]"
+                    }`}
                 >
                   {modalPedido.estado}
                 </span>
@@ -568,8 +608,14 @@ export default function PedidosListPage() {
               <>
                 <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   {pedidosVisibles.map((pedido, index) => {
-                    const cancelado = esCancelado(pedido.estado);
-                    const etiqueta = cancelado ? "CANCELADA" : "PENDIENTE";
+                    let etiqueta = "PENDIENTE";
+                    if (pedido.estado === "PAGO_RECHAZADO") {
+                      etiqueta = "RECHAZADA";
+                    } else if (pedido.estado === "CANCELADO") {
+                      etiqueta = "CANCELADA";
+                    } else if (pedido.tieneComprobante) {
+                      etiqueta = "Comprobante Subido";
+                    }
 
                     const imagenesPrendas = pedido.lineas
                       .slice(0, 2)
@@ -583,11 +629,10 @@ export default function PedidosListPage() {
                     return (
                       <div
                         key={pedido.idPedido}
-                        className={`relative px-6 py-5 ${
-                          index < pedidosVisibles.length - 1
-                            ? "border-b border-slate-200"
-                            : ""
-                        }`}
+                        className={`relative px-6 py-5 ${index < pedidosVisibles.length - 1
+                          ? "border-b border-slate-200"
+                          : ""
+                          }`}
                       >
                         <button
                           type="button"
@@ -763,7 +808,7 @@ export default function PedidosListPage() {
               </span>
             </div>
 
-            {esCancelado(modalPedido.estado) || modalPedido.tieneComprobante ? (
+            {modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO") ? (
               <>
                 <h2 className="text-xl font-bold text-slate-800">
                   Detalle del pedido
@@ -836,7 +881,7 @@ export default function PedidosListPage() {
                 </p>
 
                 <p className="mt-1 text-sm font-bold text-[#bd2d73]">
-                  Estado: PENDIENTE
+                  Estado: {modalPedido.estado === "PAGO_RECHAZADO" ? "RECHAZADA" : "PENDIENTE"}
                 </p>
 
                 {errorModal && (
