@@ -263,6 +263,7 @@ export default function CatalogoDetailPage() {
     varianteSeleccionada?.imagenUrl ?? producto?.imagenUrl
   );
 
+
   function redirigirALogin() {
     navigate("/login", {
       replace: false,

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-// Nota: Asegúrate de exportar esta función en tu authApi
 import { registrarUsuario } from "@/api/authApi"; 
 import logoMeowtfit from "../assets/logo.png";
 
@@ -24,24 +23,43 @@ export default function SignUpPage() {
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // 1. Validar Nombre Completo
     if (!nombre.trim()) {
       setError("Ingresa tu nombre completo.");
       return;
     }
+
+    // 2. Validar Correo Electrónico
     if (!correo.trim()) {
       setError("Ingresa tu correo electrónico.");
       return;
     }
+
+    // 3. Validar Contraseña
     if (!contrasena.trim()) {
       setError("Ingresa una contraseña.");
       return;
     }
-    if (contrasena.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (contrasena.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
-    if (!telefono.trim()) {
+
+    // 4. Validar Teléfono
+    const telefonoLimpio = telefono.trim();
+    if (!telefonoLimpio) {
       setError("Ingresa un número de teléfono.");
+      return;
+    }
+    if (telefonoLimpio.length > 20) {
+      setError("El teléfono no puede superar los 20 caracteres.");
+      return;
+    }
+
+    const soloNumeros = telefonoLimpio.replace(/^\+\d+/, "").replace(/\D/g, "");
+    
+    if (soloNumeros.length < 4) {
+      setError("El teléfono debe contener al menos 4 números (sin contar el prefijo del país).");
       return;
     }
 
@@ -49,16 +67,14 @@ export default function SignUpPage() {
       setCargando(true);
       setError(null);
 
-      // LLAMADA A LA API AJUSTADA
       await registrarUsuario({
-        nombres: nombre.trim(), // Tu backend usa 'nombres'
+        nombres: nombre.trim(),
         correo: correo.trim(),
         contrasena,
-        telefono: telefono.trim(),
-        rol: "CLIENTE",          // Tu backend necesita el rol para guardarlo en la BD
+        telefono: telefonoLimpio,
+        rol: "CLIENTE",
       });
 
-      // Si todo sale fino, redirigimos al login
       navigate("/login", { replace: true });
     } catch (err) {
       const message =
@@ -163,7 +179,7 @@ export default function SignUpPage() {
                     value={contrasena}
                     onChange={(event) => setContrasena(event.target.value)}
                     placeholder="CONTRASEÑA"
-                    className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                    className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98] [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                     autoComplete="new-password"
                     required
                   />
@@ -180,10 +196,14 @@ export default function SignUpPage() {
                 {/* TELÉFONO */}
                 <Input
                   id="telefono"
-                  type="tel"
+                  type="text"
                   value={telefono}
-                  onChange={(event) => setTelefono(event.target.value)}
-                  placeholder="TELÉFONO / CELULAR"
+                  /* Reemplaza en caliente todo lo que NO sea número, +, (), espacios o guiones */
+                  onChange={(event) => {
+                    const valorFiltrado = event.target.value.replace(/[^\d+() \-]/g, "");
+                    setTelefono(valorFiltrado);
+                  }}
+                  placeholder="TELÉFONO / CELULAR (Ej: +51 987654321)"
                   className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
                   autoComplete="tel"
                   required

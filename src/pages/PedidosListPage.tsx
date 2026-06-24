@@ -13,7 +13,6 @@ import {
 import {
   listarMisPedidos,
   subirComprobante,
-  verificarPago,
   cambiarEstadoPedido,
   obtenerComprobantePorPedido,
   eliminarComprobante,

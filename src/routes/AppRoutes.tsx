@@ -10,6 +10,7 @@ import RecuperarContraPage from "../pages/RecuperarContraPage";
 
 import CarritoPage from "../pages/CarritoPage";
 import PedidosListPage from "../pages/PedidosListPage";
+import PersonalizarPrenda from "../pages/PersonalizarPrenda";
 
 import CatalogLayout from "../components/layout/CatalogLayout";
 import AdminLayout from "../components/layout/AdminLayout";
@@ -63,6 +64,10 @@ export const router = createBrowserRouter([
       {
         path: "/pedidos",
         element: <PedidosListPage />,
+      },
+      {
+        path: "/personalizar/:id",
+        element: <PersonalizarPrenda />,
       },
     ],
   },
