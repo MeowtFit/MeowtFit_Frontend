@@ -125,7 +125,7 @@ export default function LoginPage() {
             <div className="mb-8">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate("/")}
                 className="mb-5 flex w-fit cursor-pointer items-center text-xs font-bold uppercase tracking-wider text-[#b43b6c] transition-all hover:underline"
               >
                 <ArrowLeft size={14} className="mr-2" />

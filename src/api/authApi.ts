@@ -12,21 +12,6 @@ export type LoginResponse = {
   rol: RolUsuario;
 };
 
-export type RegistroClienteRequest = {
-  nombres: string;
-  correo: string;
-  contrasena: string;
-  telefono: string;
-  rol: "CLIENTE";
-};
-
-export type RegistroClienteResponse = {
-  idUsuario: number;
-  nombres: string;
-  correo: string;
-  rol: RolUsuario;
-};
-
 export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
@@ -53,26 +38,21 @@ export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
   return response.json() as Promise<LoginResponse>;
 }
 
-export async function registrarUsuario(data: RegistroClienteRequest): Promise<RegistroClienteResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
+export async function logoutUsuario(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
+    credentials: "include",
   });
 
-  if (!response.ok) {
-    let message = "No se pudo completar el registro.";
-    try {
-      const errorData = await response.json();
-      // Mapea el mensaje que retorne tu validación DTO de Spring Boot
-      message = errorData.mensaje ?? errorData.error ?? errorData.message ?? message;
-    } catch {
-      message = response.statusText || message;
-    }
-    throw new Error(message);
+  if (!response.ok && response.status !== 204) {
+    throw new Error("No se pudo cerrar sesión en el servidor.");
   }
+}
 
-  return response.json() as Promise<RegistroClienteResponse>;
+export function limpiarSesionLocal() {
+  localStorage.removeItem("meowtfit_correo");
+  localStorage.removeItem("meowtfit_rol");
+
+  sessionStorage.removeItem("meowtfit_correo");
+  sessionStorage.removeItem("meowtfit_rol");
 }
