@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { loginUsuario } from "@/api/authApi";
+import { loginUsuario, limpiarSesionLocal } from "@/api/authApi";
 import logoMeowtfit from "../../assets/logo.png";
 
 export default function LoginPage() {
@@ -45,17 +45,32 @@ export default function LoginPage() {
         contrasena,
       });
 
-      const rolNormalizado = data.rol.toUpperCase();
+      const rolNormalizado = data.rol?.toUpperCase();
 
-      localStorage.removeItem("meowtfit_correo");
-      localStorage.removeItem("meowtfit_rol");
-      sessionStorage.removeItem("meowtfit_correo");
-      sessionStorage.removeItem("meowtfit_rol");
+      limpiarSesionLocal();
 
       const storage = rememberMe ? localStorage : sessionStorage;
 
       storage.setItem("meowtfit_correo", data.correo);
       storage.setItem("meowtfit_rol", rolNormalizado);
+
+      if (data.id != null) {
+        storage.setItem("meowtfit_idUsuario", String(data.id));
+      }
+
+      /**
+       * IMPORTANTE:
+       * Esto sirve solo si el id que devuelve el backend también funciona
+       * como idComerciante para filtrar:
+       *
+       * GET /api/cotizaciones/filtrar?idComerciante=...
+       *
+       * Si idUsuario e idComerciante son distintos, el backend debe devolver
+       * también idComerciante en LoginResponseDTO.
+       */
+      if (rolNormalizado === "COMERCIANTE" && data.id != null) {
+        storage.setItem("meowtfit_idComerciante", String(data.id));
+      }
 
       if (rolNormalizado === "ADMINISTRADOR") {
         navigate("/admin/comerciantes", { replace: true });
@@ -72,11 +87,7 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.removeItem("meowtfit_correo");
-      localStorage.removeItem("meowtfit_rol");
-      sessionStorage.removeItem("meowtfit_correo");
-      sessionStorage.removeItem("meowtfit_rol");
-
+      limpiarSesionLocal();
       setError("Rol de usuario no reconocido.");
     } catch (err) {
       const message =
@@ -125,7 +136,7 @@ export default function LoginPage() {
             <div className="mb-8">
               <button
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate(-1)}
                 className="mb-5 flex w-fit cursor-pointer items-center text-xs font-bold uppercase tracking-wider text-[#b43b6c] transition-all hover:underline"
               >
                 <ArrowLeft size={14} className="mr-2" />
@@ -207,17 +218,6 @@ export default function LoginPage() {
                 {cargando && <Loader2 className="animate-spin" size={16} />}
                 INICIAR SESIÓN
               </Button>
-
-              {/* ENLACE DE REGISTRO INTEGRADO */}
-              <div className="mb-4 mt-1 text-center text-xs text-gray-500">
-                ¿Primera vez en Meowtfit?{" "}
-                <Link
-                  to="/signup"
-                  className="font-bold tracking-wide text-[#b43b6c] hover:underline"
-                >
-                  Crea tu cuenta
-                </Link>
-              </div>
 
               <div className="mb-2 mt-6 text-center text-xs text-gray-500">
                 Accede a tu cuenta exclusiva de Meowtfit.
