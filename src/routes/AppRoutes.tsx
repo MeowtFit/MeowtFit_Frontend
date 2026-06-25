@@ -8,6 +8,7 @@ import LoginPage from "../pages/LoginPage";
 import OlvideContraPage from "../pages/OlvideContraPage";
 import RecuperarContraPage from "../pages/RecuperarContraPage";
 
+import PerfilPage from "../pages/PerfilPage";
 import CarritoPage from "../pages/CarritoPage";
 import PedidosListPage from "../pages/PedidosListPage";
 import PersonalizarPrenda from "../pages/PersonalizarPrenda";
@@ -69,8 +70,13 @@ export const router = createBrowserRouter([
         path: "/personalizar/:id",
         element: <PersonalizarPrenda />,
       },
+      {
+        path: "/perfil", 
+        element: <PerfilPage />,
+      },
     ],
   },
+  
   {
     path: "/login",
     element: <LoginPage />,
