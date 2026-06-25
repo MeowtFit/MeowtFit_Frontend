@@ -263,6 +263,14 @@ export default function CatalogoDetailPage() {
     varianteSeleccionada?.imagenUrl ?? producto?.imagenUrl
   );
 
+  const hexColorActual = colorSeleccionado
+    ? obtenerHexColor(
+        producto?.variantes.find(
+          (v) => obtenerNombreColor(v.color) === colorSeleccionado
+        )?.color ?? null
+      )
+    : null;
+
 
   function redirigirALogin() {
     navigate("/login", {
@@ -458,12 +466,68 @@ export default function CatalogoDetailPage() {
 
         <section className="grid gap-10 rounded-2xl bg-white p-6 shadow-sm lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <div className="overflow-hidden rounded-xl bg-[#d4b390]">
+            {/*
+             * Dos capas apiladas sobre fondo blanco:
+             *  1. <img> base — preserva sombras y texturas de la prenda
+             *  2. div coloreado con maskImage (misma URL) — recorta el tinte
+             *     al contorno exacto de la prenda cuando la imagen es PNG
+             *     con fondo transparente; mix-blend-mode multiply fusiona
+             *     el color solo sobre píxeles claros (sombras permanecen)
+             */}
+            <div
+              className="relative overflow-hidden rounded-xl"
+              style={{ backgroundColor: "#ffffff", height: "620px" }}
+            >
               <img
                 src={imagenPrincipal}
                 alt={producto.nombre}
-                className="h-[620px] w-full object-cover"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  zIndex: 1,
+                }}
               />
+
+              {hexColorActual && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 2,
+                    backgroundColor: hexColorActual,
+                    maskImage: `url(${imagenPrincipal})`,
+                    WebkitMaskImage: `url(${imagenPrincipal})`,
+                    maskSize: "cover",
+                    maskRepeat: "no-repeat",
+                    maskPosition: "center",
+                    WebkitMaskSize: "cover",
+                    WebkitMaskRepeat: "no-repeat",
+                    WebkitMaskPosition: "center",
+                    mixBlendMode: "multiply",
+                    pointerEvents: "none",
+                    transition: "background-color 0.3s ease",
+                  }}
+                />
+              )}
+
+              {/* Chip flotante con el color activo */}
+              {colorSeleccionado && (
+                <div
+                  className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm"
+                  style={{ zIndex: 3 }}
+                >
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-200"
+                    style={{ backgroundColor: hexColorActual ?? "#d1d5db" }}
+                  />
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
+                    {colorSeleccionado}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
