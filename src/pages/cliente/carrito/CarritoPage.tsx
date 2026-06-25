@@ -7,7 +7,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import logoMeowtfit from "../assets/logo.png";
+import logoMeowtfit from "../../../assets/logo.png";
 
 import {
   obtenerOCrearCarritoActivo,
