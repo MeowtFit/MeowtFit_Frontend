@@ -15,6 +15,7 @@ export type ColorVariante =
       nombreColor?: string;
       codigoHex?: string;
       hex?: string;
+      hexadecimal?: string;
     };
 
 export type VarianteProducto = {
