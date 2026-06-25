@@ -2,6 +2,7 @@ import {
     Boxes,
     ChartColumn,
     ClipboardList,
+    Eye,
     LayoutDashboard,
     Settings,
     ShoppingBag,
@@ -78,8 +79,13 @@ export default function Sidebar() {
     function handleLogout() {
         localStorage.removeItem("meowtfit_correo");
         localStorage.removeItem("meowtfit_rol");
-
+        sessionStorage.removeItem("meowtfit_vista_cliente");
         navigate("/login", { replace: true });
+    }
+
+    function handleVistaCliente() {
+        sessionStorage.setItem("meowtfit_vista_cliente", "true");
+        navigate("/");
     }
 
     return (
@@ -133,6 +139,15 @@ export default function Sidebar() {
                         </p>
                     </div>
                 </div>
+
+                <Button
+                    type="button"
+                    onClick={handleVistaCliente}
+                    className="h-10 w-full bg-white/15 text-white hover:bg-white/25 border border-white/30"
+                >
+                    <Eye size={16} />
+                    Vista Cliente
+                </Button>
 
                 <Button
                     type="button"

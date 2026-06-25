@@ -1,16 +1,21 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-import CatalogDetailPage from "../pages/CatalogoDetailPage";
-import CatalogHomePage from "../pages/CatalogoHomePage";
+import CatalogDetailPage from "../pages/cliente/catalogo/CatalogoDetailPage";
+import CatalogHomePage from "../pages/cliente/catalogo/CatalogoHomePage";
 
-import SignUpPage from "../pages/SignUpPage";
-import LoginPage from "../pages/LoginPage";
-import OlvideContraPage from "../pages/OlvideContraPage";
-import RecuperarContraPage from "../pages/RecuperarContraPage";
+import SignUpPage from "../pages/login/SignUpPage";
+import LoginPage from "../pages/login/LoginPage";
+import OlvideContraPage from "../pages/login/OlvideContraPage";
+import RecuperarContraPage from "../pages/login/RecuperarContraPage";
+import PerfilUsuarioPage from "../pages/login/PerfilUsuarioPage";
 
-import PerfilPage from "../pages/PerfilPage";
-import CarritoPage from "../pages/CarritoPage";
-import PedidosListPage from "../pages/PedidosListPage";
+import CarritoPage from "../pages/cliente/carrito/CarritoPage";
+import PedidosListPage from "../pages/cliente/pedido/PedidosListPage";
+
+import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
+import CotizacionesClientePage from "../pages/cliente/cotizacion/CotizacionClientePage";
+import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
+
 import PersonalizarPrenda from "../pages/PersonalizarPrenda";
 
 import CatalogLayout from "../components/layout/CatalogLayout";
@@ -33,18 +38,12 @@ import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
 import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
+import CotizacionesTodasPage from "../pages/admin/cotizacion/CotizacionesTodasPage";
+import CotizacionesAsignadasPage from "../pages/admin/cotizacion/CotizacionesAsignadasPage";
+import CotizacionAdminDetailPage from "../pages/admin/cotizacion/CotizacionesDetailPage";
+
 import ProtectedRoute from "./ProtectedRoute";
-
-function AdminIndexRedirect() {
-  const rol =
-    localStorage.getItem("meowtfit_rol") ||
-    sessionStorage.getItem("meowtfit_rol");
-
-  if (rol === "ADMINISTRADOR") {
-    return <Navigate to="/admin/comerciantes" replace />;
-  }
-  return <Navigate to="/admin/inventario" replace />;
-}
+import AdminIndexRedirect from "./AdminIndexRedirect";
 
 export const router = createBrowserRouter([
   {
@@ -60,23 +59,58 @@ export const router = createBrowserRouter([
       },
       {
         path: "/carrito",
-        element: <CarritoPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CarritoPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/pedidos",
-        element: <PedidosListPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <PedidosListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/cotizaciones",
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionesClientePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/cotizaciones/crear",
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/cotizaciones/:id",
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionClienteDetailPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/personalizar/:id",
         element: <PersonalizarPrenda />,
       },
-      {
-        path: "/perfil", 
-        element: <PerfilPage />,
-      },
     ],
   },
-  
+  {
+    path: "/perfil",
+    element: (
+      <ProtectedRoute allowedRoles={["CLIENTE", "ADMINISTRADOR", "COMERCIANTE"]}>
+        <PerfilUsuarioPage />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: "/login",
     element: <LoginPage />,
@@ -107,7 +141,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "dashboard",
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "inventario",
@@ -129,17 +167,31 @@ export const router = createBrowserRouter([
         path: "ventas",
         element: <VentasPage />,
       },
+
       {
         path: "cotizaciones",
         element: <CotizacionesPage />,
       },
       {
+        path: "cotizaciones/todas",
+        element: <CotizacionesTodasPage />,
+      },
+      {
+        path: "cotizaciones/asignadas",
+        element: <CotizacionesAsignadasPage />,
+      },
+      {
+        path: "cotizaciones/:id",
+        element: <CotizacionAdminDetailPage />,
+      },
+
+      {
         path: "pedidos",
-        element: <PedidosGestionPage />
+        element: <PedidosGestionPage />,
       },
       {
         path: "pedidos/validarPago/:id",
-        element: <PedidosValidarPagoPage />
+        element: <PedidosValidarPagoPage />,
       },
       {
         path: "comerciantes",

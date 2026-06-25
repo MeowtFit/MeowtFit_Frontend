@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
+  Eye,
   Minus,
   Plus,
   Trash2,
 } from "lucide-react";
-import logoMeowtfit from "../assets/logo.png";
+import logoMeowtfit from "../../../assets/logo.png";
 
 import {
   obtenerOCrearCarritoActivo,
@@ -102,6 +104,7 @@ export default function CarritoPage() {
 
   const [generandoFactura, setGenerandoFactura] = useState(false);
   const [mensajeFactura, setMensajeFactura] = useState<string | null>(null);
+  const [modalVistaCliente, setModalVistaCliente] = useState(false);
 
   // 1. CONTROL DE REDIRECCIÓN SI NO ESTÁ LOGUEADO AL ENTRAR
   useEffect(() => {
@@ -314,12 +317,19 @@ export default function CarritoPage() {
   );
 
   const envio = items.length > 0 ? 15 : 0;
-  const total = subtotalConDescuento + envio;
+  const igv = subtotalConDescuento * 0.18;
+  const total = subtotalConDescuento + igv + envio;
 
   const puedeCotizar =
     configuracion && totalUnidades >= configuracion.stockMinimoCotizacion;
 
   async function generarFactura() {
+    // Bloquear en modo vista cliente
+    if (sessionStorage.getItem("meowtfit_vista_cliente") === "true") {
+      setModalVistaCliente(true);
+      return;
+    }
+
     const sesion = obtenerSesionUsuario();
 
     if (!sesion.estaLogeado) {
@@ -411,12 +421,20 @@ export default function CarritoPage() {
   return (
     <div className="min-h-screen bg-[#f7fafc]">
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <h1 className="text-5xl font-extrabold text-slate-900">Tu Carrito</h1>
+        <h1 className="text-5xl font-extrabold text-slate-900">Tu carrito</h1>
         <p className="mt-2 text-slate-500">
           {items.length} artículo(s) en tu carrito
         </p>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <Link
+          to="/"
+          className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-[#087f99] hover:text-[#087f99]"
+        >
+          <ArrowLeft size={15} />
+          Seguir comprando
+        </Link>
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
           <section className="space-y-6">
             {items.map((item) => {
               const porcentajeDesc = obtenerPorcentajeDescuento(item);
@@ -534,7 +552,7 @@ export default function CarritoPage() {
           </section>
 
           <aside className="h-fit rounded-2xl bg-[#d7edf2] p-6">
-            <h2 className="text-3xl font-bold">Resumen de Compra</h2>
+            <h2 className="text-3xl font-bold">Resumen de compra</h2>
             <div className="mt-8 space-y-4">
               <div className="flex justify-between">
                 <span>Subtotal base</span>
@@ -551,6 +569,11 @@ export default function CarritoPage() {
               <div className="flex justify-between">
                 <span>Envío (Express Lima)</span>
                 <span>{formatearPrecio(envio)}</span>
+              </div>
+
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>IGV (18%)</span>
+                <span>{formatearPrecio(igv)}</span>
               </div>
 
               <hr />
@@ -585,6 +608,32 @@ export default function CarritoPage() {
         </div>
       </main>
 
+      {/* MODAL VISTA CLIENTE — acción bloqueada */}
+      {modalVistaCliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+              <Eye size={26} className="text-amber-600" />
+            </div>
+            <h2 className="text-lg font-extrabold text-slate-800">
+              Acción no disponible
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              Esta sección está inhabilitada en la vista de cliente.
+              Estás navegando en modo de previsualización y no puedes
+              realizar acciones transaccionales.
+            </p>
+            <Button
+              type="button"
+              onClick={() => setModalVistaCliente(false)}
+              className="mt-6 h-11 w-full bg-[#087f99] text-sm font-bold hover:bg-[#076f86]"
+            >
+              Aceptar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE COTIZACIÓN */}
       {puedeCotizar && mostrarPopupCotizacion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
@@ -613,7 +662,7 @@ export default function CarritoPage() {
 
             <div className="mt-10 px-4">
               <Button className="h-14 w-full rounded-xl bg-[#087f99] text-xl font-semibold transition-colors hover:bg-[#066479]">
-                Generar Cotización
+                Generar cotización
               </Button>
             </div>
           </div>

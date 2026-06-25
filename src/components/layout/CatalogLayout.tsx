@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { NavLink, Outlet } from "react-router-dom";
-import { ClipboardList, Search, ShoppingCart } from "lucide-react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { ArrowLeft, ClipboardList, Eye, Search, ShoppingCart } from "lucide-react";
 
 import UserSessionMenu from "@/components/layout/UserSessionMenu";
 
@@ -43,9 +43,42 @@ function HeaderIconLink({
 }
 
 export default function CatalogLayout() {
+  const navigate = useNavigate();
+  const enVistaCliente =
+    sessionStorage.getItem("meowtfit_vista_cliente") === "true";
+
+  function handleVolverPanel() {
+    sessionStorage.removeItem("meowtfit_vista_cliente");
+    navigate("/admin");
+  }
+
   return (
     <div className="min-h-screen bg-[#f4f8fb] text-slate-800">
-      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white">
+      {/* Banner de modo vista cliente */}
+      {enVistaCliente && (
+        <div className="sticky top-0 z-50 flex items-center justify-between gap-4 bg-amber-400 px-6 py-2 text-sm font-semibold text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Eye size={16} />
+            <span>
+              Modo Vista Cliente — Estás visualizando la plataforma como la
+              vería un cliente final. Las acciones transaccionales están
+              deshabilitadas.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleVolverPanel}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-700/40 bg-amber-500/40 px-3 py-1 text-xs font-bold text-amber-900 transition hover:bg-amber-500/60"
+          >
+            <ArrowLeft size={13} />
+            Volver al panel
+          </button>
+        </div>
+      )}
+
+      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white"
+        style={enVistaCliente ? { top: "36px" } : undefined}
+      >
         <div className="mx-auto flex h-[66px] max-w-7xl items-center justify-between px-6">
           <NavLink
             to="/"

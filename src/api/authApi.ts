@@ -10,39 +10,46 @@ export type LoginRequest = {
 export type LoginResponse = {
   correo: string;
   rol: RolUsuario;
+  id: number;
 };
 
-export type RegistroClienteRequest = {
+export type RegistrarUsuarioRequest = {
   nombres: string;
   correo: string;
   contrasena: string;
   telefono: string;
-  rol: "CLIENTE";
-};
-
-export type RegistroClienteResponse = {
-  idUsuario: number;
-  nombres: string;
-  correo: string;
   rol: RolUsuario;
 };
 
-export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
+export type UsuarioResponse = {
+  idUsuario?: number;
+  id?: number;
+  nombres?: string;
+  correo: string;
+  telefono?: string;
+  rol?: RolUsuario;
+};
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
     },
-    body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    let message = "Correo o contraseña incorrectos.";
+    let message = "No se pudo completar la operación.";
 
     try {
       const errorData = await response.json();
-      message = errorData.mensaje ?? errorData.error ?? message;
+      message =
+        errorData.mensaje ??
+        errorData.message ??
+        errorData.error ??
+        message;
     } catch {
       message = response.statusText || message;
     }
@@ -50,29 +57,58 @@ export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
     throw new Error(message);
   }
 
-  return response.json() as Promise<LoginResponse>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
-export async function registrarUsuario(data: RegistroClienteRequest): Promise<RegistroClienteResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
+export async function loginUsuario(
+  data: LoginRequest
+): Promise<LoginResponse> {
+  return request<LoginResponse>("/api/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(data),
   });
+}
 
-  if (!response.ok) {
-    let message = "No se pudo completar el registro.";
-    try {
-      const errorData = await response.json();
-      // Mapea el mensaje que retorne tu validación DTO de Spring Boot
-      message = errorData.mensaje ?? errorData.error ?? errorData.message ?? message;
-    } catch {
-      message = response.statusText || message;
-    }
-    throw new Error(message);
+/**
+ * Ajusta esta ruta si tu backend usa otro endpoint.
+ *
+ * Ejemplos posibles según tu controller:
+ * - POST /api/usuarios
+ * - POST /api/usuarios/registrar
+ * - POST /api/auth/register
+ */
+export async function registrarUsuario(
+  data: RegistrarUsuarioRequest
+): Promise<UsuarioResponse> {
+  return request<UsuarioResponse>("/api/usuarios", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function logoutUsuario(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error("No se pudo cerrar sesión en el servidor.");
   }
+}
 
-  return response.json() as Promise<RegistroClienteResponse>;
+export function limpiarSesionLocal() {
+  localStorage.removeItem("meowtfit_correo");
+  localStorage.removeItem("meowtfit_rol");
+  localStorage.removeItem("meowtfit_idUsuario");
+  localStorage.removeItem("meowtfit_idComerciante");
+
+  sessionStorage.removeItem("meowtfit_correo");
+  sessionStorage.removeItem("meowtfit_rol");
+  sessionStorage.removeItem("meowtfit_idUsuario");
+  sessionStorage.removeItem("meowtfit_idComerciante");
 }
