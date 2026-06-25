@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Save, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Loader2, AlertCircle, X, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   listarCategorias,
   listarColores,
   crearProducto,
+  subirImagenProducto,
   type Categoria,
   type Color,
   type ReglaDescuentoRequestDTO,
   type ProductoRequestDTO,
 } from "@/api/productosApi";
+import { obtenerConfiguracionNegocio, type ConfiguracionNegocio } from "@/api/configuracionApi";
 
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
@@ -29,17 +31,23 @@ export default function ProductoNuevoPage() {
   const [cargandoCategorias, setCargandoCategorias] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configuracion, setConfiguracion] = useState<ConfiguracionNegocio | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [precioBase, setPrecioBase] = useState("");
   const [idCategoria, setIdCategoria] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
+  const [archivoImagen, setArchivoImagen] = useState<File | null>(null);
+  const [previewLocal, setPreviewLocal] = useState<string | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const [variantes, setVariantes] = useState<Array<{ talla: string; idColor: number; colorNombre: string; stockDisponible: number }>>([]);
 
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [idColorSeleccionado, setIdColorSeleccionado] = useState("");
+  const [dropdownColorOpen, setDropdownColorOpen] = useState(false);
   const [stockInput, setStockInput] = useState("0");
   const [errorVariante, setErrorVariante] = useState<string | null>(null);
 
@@ -62,15 +70,16 @@ export default function ProductoNuevoPage() {
   };
 
   useEffect(() => {
-    Promise.all([listarCategorias(), listarColores()])
-      .then(([dataCategorias, dataColores]) => {
+    Promise.all([listarCategorias(), listarColores(), obtenerConfiguracionNegocio()])
+      .then(([dataCategorias, dataColores, dataConfig]) => {
         setCategorias(dataCategorias);
         setColores(dataColores);
+        setConfiguracion(dataConfig);
         setCargandoCategorias(false);
       })
       .catch((err) => {
         console.error("Error al cargar datos iniciales:", err);
-        setError("No se pudieron cargar las categorías o colores del servidor.");
+        setError("No se pudieron cargar las categorías, colores o la configuración de negocio del servidor.");
         setCargandoCategorias(false);
       });
   }, []);
@@ -79,6 +88,30 @@ export default function ProductoNuevoPage() {
   const tallasDisponibles = categoriaActual
     ? (Object.entries(OPCIONES_TALLAS).find(([key]) => categoriaActual.nombre.toLowerCase().includes(key))?.[1] || ['S', 'M', 'L', 'XL'])
     : ['S', 'M', 'L', 'XL'];
+
+  const handleArchivoSeleccionado = (file: File | null) => {
+    if (!file) return;
+    const permitidos = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!permitidos.includes(file.type)) {
+      setError("Solo se permiten imágenes JPG, PNG, WEBP o GIF.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("La imagen no puede superar los 10 MB.");
+      return;
+    }
+    setArchivoImagen(file);
+    setImagenUrl("");
+    setPreviewLocal(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  const handleQuitarImagen = () => {
+    if (previewLocal) URL.revokeObjectURL(previewLocal);
+    setArchivoImagen(null);
+    setPreviewLocal(null);
+    setImagenUrl("");
+  };
 
   const handleAgregarVariante = () => {
     setErrorVariante(null);
@@ -144,6 +177,11 @@ export default function ProductoNuevoPage() {
       return;
     }
 
+    if (configuracion && fin >= configuracion.stockMinimoCotizacion) {
+      setErrorRegla(`El rango final (${fin}) no puede superar el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
+
     if (porcentaje > 100) {
       setErrorRegla("El porcentaje de descuento no puede ser mayor a 100%.");
       return;
@@ -186,13 +224,30 @@ export default function ProductoNuevoPage() {
       return;
     }
 
+    if (configuracion && reglasDescuento.some(r => r.rangoMaximo >= configuracion.stockMinimoCotizacion)) {
+      setError(`Hay reglas de descuento cuyo rango final supera el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
+
     try {
       setGuardando(true);
+
+      // Si hay un archivo seleccionado, subirlo primero a S3 para obtener la URL
+      let urlFinal = imagenUrl.trim() || undefined;
+      if (archivoImagen) {
+        setSubiendoImagen(true);
+        try {
+          urlFinal = await subirImagenProducto(archivoImagen);
+        } finally {
+          setSubiendoImagen(false);
+        }
+      }
+
       const productoRequest: ProductoRequestDTO = {
         nombre: nombre.trim(),
         precioBase: Number(precioBase),
         descripcion: descripcion.trim() || undefined,
-        imagenUrl: imagenUrl.trim() || undefined,
+        imagenUrl: urlFinal,
         idCategoria: Number(idCategoria),
 
         variantes: variantes.map(v => ({
@@ -237,11 +292,25 @@ export default function ProductoNuevoPage() {
 
         <Button
           onClick={handleSubmit}
-          disabled={guardando}
+          disabled={guardando || subiendoImagen}
           className="bg-[#087f99] hover:bg-[#066a80] text-white gap-2 font-medium"
         >
-          {guardando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          Guardar Producto
+          {subiendoImagen ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Subiendo imagen...
+            </>
+          ) : guardando ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              Guardar Producto
+            </>
+          )}
         </Button>
       </div>
 
@@ -281,32 +350,114 @@ export default function ProductoNuevoPage() {
               />
             </div>
             {/* Imagen */}
-            <div className="space-y-1">
-              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Imagen del Producto</h2>
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">
+                Imagen del Producto
+              </h2>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-700">URL de la Imagen</label>
+              {/* Vista previa + quitar */}
+              {(previewLocal ?? imagenUrl.trim()) ? (
+                <div className="relative border border-zinc-200 rounded-lg overflow-hidden bg-zinc-50 flex items-center justify-center h-52">
+                  <img
+                    src={previewLocal ?? imagenUrl}
+                    alt="Vista previa del producto"
+                    className="max-h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://placehold.co/600x400?text=Error+al+cargar";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleQuitarImagen}
+                    className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/90 border border-zinc-200 shadow flex items-center justify-center text-zinc-500 hover:text-rose-600 hover:border-rose-300 transition"
+                    title="Quitar imagen"
+                  >
+                    <X size={13} />
+                  </button>
+                  {archivoImagen && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-white/90 border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-600 shadow">
+                      {archivoImagen.name}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                /* Zona drag-and-drop */
+                <label
+                  htmlFor="input-imagen-producto"
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    handleArchivoSeleccionado(e.dataTransfer.files[0] ?? null);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-3 h-44 rounded-lg border-2 border-dashed cursor-pointer transition ${dragOver
+                      ? "border-[#087f99] bg-cyan-50"
+                      : "border-zinc-200 bg-zinc-50 hover:border-[#087f99] hover:bg-cyan-50/50"
+                    }`}
+                >
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 text-zinc-400">
+                    <ImageIcon size={20} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Arrastra una imagen aquí o{" "}
+                      <span className="text-[#087f99]">haz clic para seleccionar</span>
+                    </p>
+                    <p className="mt-1 text-[10px] text-zinc-400">
+                      JPG, PNG, WEBP o GIF · Máx. 10 MB
+                    </p>
+                  </div>
+                  <input
+                    id="input-imagen-producto"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) =>
+                      handleArchivoSeleccionado(e.target.files?.[0] ?? null)
+                    }
+                  />
+                </label>
+              )}
+
+              {/* Divider con opción URL alternativa */}
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-zinc-100" />
+                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
+                  o pega una URL
+                </span>
+                <div className="h-px flex-1 bg-zinc-100" />
+              </div>
+
+              <div className="flex items-center gap-2">
                 <Input
                   type="url"
                   placeholder="https://images.unsplash.com/..."
                   value={imagenUrl}
-                  onChange={(e) => setImagenUrl(e.target.value)}
-                  className="border-zinc-200 focus-visible:ring-[#087f99] h-10 text-xs"
+                  onChange={(e) => {
+                    setImagenUrl(e.target.value);
+                    if (e.target.value.trim()) {
+                      // Si escribe URL, descarta el archivo
+                      if (previewLocal) URL.revokeObjectURL(previewLocal);
+                      setArchivoImagen(null);
+                      setPreviewLocal(null);
+                    }
+                  }}
+                  disabled={Boolean(archivoImagen)}
+                  className="border-zinc-200 focus-visible:ring-[#087f99] h-9 text-xs disabled:opacity-40"
                 />
+                {imagenUrl.trim() && !archivoImagen && (
+                  <button
+                    type="button"
+                    onClick={() => setImagenUrl("")}
+                    className="shrink-0 text-zinc-400 hover:text-rose-500 transition"
+                    title="Limpiar URL"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </div>
-
-              {imagenUrl.trim() && (
-                <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden">
-                  <img
-                    src={imagenUrl}
-                    alt="Vista previa del producto"
-                    className="max-h-full object-contain rounded"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=Error+al+cargar+imagen";
-                    }}
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -334,18 +485,54 @@ export default function ProductoNuevoPage() {
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">2. Color</label>
-                <select
-                  value={idColorSeleccionado}
-                  onChange={(e) => { setIdColorSeleccionado(e.target.value); setErrorVariante(null); }}
-                  className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99]"
-                >
-                  <option value="">Seleccionar...</option>
-                  {colores.map((color) => (
-                    <option key={color.idColor} value={color.idColor.toString()}>
-                      {color.nombre}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownColorOpen(!dropdownColorOpen)}
+                    className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99] flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      {idColorSeleccionado ? (
+                        <>
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                            style={{ backgroundColor: colores.find(c => c.idColor === Number(idColorSeleccionado))?.hexadecimal }}
+                          />
+                          <span className="capitalize">{colores.find(c => c.idColor === Number(idColorSeleccionado))?.nombre}</span>
+                        </>
+                      ) : (
+                        <span className="text-zinc-400">Seleccionar...</span>
+                      )}
+                    </div>
+                    <span className="text-zinc-400 text-xs">▼</span>
+                  </button>
+
+                  {dropdownColorOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setDropdownColorOpen(false)} />
+                      <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-zinc-200 rounded-md shadow-lg py-1">
+                        {colores.map((color) => (
+                          <button
+                            key={color.idColor}
+                            type="button"
+                            onClick={() => {
+                              setIdColorSeleccionado(color.idColor.toString());
+                              setDropdownColorOpen(false);
+                              setErrorVariante(null);
+                            }}
+                            className="w-full px-3 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2 capitalize text-zinc-700 cursor-pointer"
+                          >
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                              style={{ backgroundColor: color.hexadecimal }}
+                            />
+                            {color.nombre}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -480,12 +667,43 @@ export default function ProductoNuevoPage() {
             </div>
           </div>
 
+          {/* Configuración de Negocio */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Configuración de Negocio</h2>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                Valores establecidos para el stock mínimo de cotización y precio piso.
+              </p>
+            </div>
+            {configuracion ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Stock Mínimo Cotización</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.stockMinimoCotizacion} und
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Porcentaje Precio Piso</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.porcentajePrecioPiso}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="animate-spin text-[#087f99] h-5 w-5 mr-2" />
+                <span className="text-xs text-zinc-500 italic">Cargando configuración de negocio...</span>
+              </div>
+            )}
+          </div>
+
           {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">4. Reglas de Descuento</h2>
               <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                Establece escalas de descuento según la cantidad total de unidades compradas.
+                Establece escalas de descuento según la cantidad total de unidades compradas. El rango no debe superar el stock minimo de cotización.
               </p>
             </div>
 

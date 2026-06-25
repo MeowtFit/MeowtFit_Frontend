@@ -199,6 +199,10 @@ export function obtenerVariantesPorProducto(idProducto: number) {
   return request<VarianteProducto[]>(`/api/variantes/producto/${idProducto}`);
 }
 
+export function obtenerVariantePorId(idVariante: number) {
+  return request<any>(`/api/variantes/${idVariante}`);
+}
+
 export function crearVarianteProducto(data: VarianteProductoRequestDTO) {
   return request<VarianteProducto>("/api/variantes", {
     method: "POST",
@@ -211,6 +215,34 @@ export function editarVarianteProducto(idVariante: number, data: VarianteProduct
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+export async function subirImagenProducto(archivo: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("archivo", archivo);
+
+  const response = await fetch(`${API_BASE_URL}/api/productos/imagen`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo subir la imagen";
+    try {
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw new Error(`${response.status} ${message}`);
+  }
+
+  const data = await response.json();
+  // El backend devuelve { url: "..." } o { imagenUrl: "..." }
+  const url = data.url ?? data.imagenUrl ?? data;
+  if (typeof url !== "string") throw new Error("El servidor no devolvió una URL de imagen válida.");
+  return url;
 }
 
 export function eliminarVarianteProducto(idVariante: number) {

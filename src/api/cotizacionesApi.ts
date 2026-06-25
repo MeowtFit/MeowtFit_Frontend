@@ -2,11 +2,27 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export type EstadoCotizacion =
   | "PENDIENTE"
-  | "ACEPTADA"
-  | "APROBADA"
-  | "RECHAZADA"
   | "CONTRAPROPUESTA"
-  | "CANCELADA";
+  | "RECHAZADA"
+  | "CERRADA";
+
+export type LineaCotizacion = {
+  idLineaCotizacion: number;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  idCotizacion: number;
+  idVariante: number;
+};
+
+export type Contrapropuesta = {
+  idContrapropuesta: number;
+  sustento: string | null;
+  fechaCreacion: string;
+  precioNuevo: number;
+  idCotizacion: number;
+  idUserGenerador: number;
+};
 
 export type Cotizacion = {
   idCotizacion: number;
@@ -21,11 +37,16 @@ export type Cotizacion = {
   idCliente: number;
   idComerciante: number | null;
   idProducto: number;
-};
 
-export type VarianteCotizacionRequest = {
-  idVariante: number;
-  cantidad: number;
+  lineas?: LineaCotizacion[];
+  lineasCotizacion?: LineaCotizacion[];
+  lineaCotizaciones?: LineaCotizacion[];
+
+  contrapropuestas?: Contrapropuesta[];
+  historialContrapropuestas?: Contrapropuesta[];
+
+  cantidadContrapropuestas?: number | null;
+  numeroContrapropuestas?: number | null;
 };
 
 export type LineaCotizacionRequest = {
@@ -43,7 +64,7 @@ export type CrearCotizacionRequest = {
 
 export type ContrapropuestaRequest = {
   idCotizacion: number;
-  montoSugerido: number;
+  precioNuevo: number;
   sustento: string | null;
 };
 
@@ -59,12 +80,12 @@ export type PageResponse<T> = {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...options?.headers,
+      ...(options?.headers ?? {}),
     },
-    ...options,
   });
 
   if (!response.ok) {
@@ -114,6 +135,37 @@ export function filtrarMisCotizaciones(params?: {
 
   return request<PageResponse<Cotizacion>>(
     `/api/cotizaciones/mis-cotizaciones/filtrar?${searchParams.toString()}`
+  );
+}
+
+export function filtrarCotizaciones(params?: {
+  estado?: EstadoCotizacion | "";
+  idCliente?: number | null;
+  idComerciante?: number | null;
+  fechaDesde?: string | null;
+  fechaHasta?: string | null;
+  montoMin?: number | null;
+  montoMax?: number | null;
+  page?: number;
+  size?: number;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.estado) searchParams.set("estado", params.estado);
+  if (params?.idCliente) searchParams.set("idCliente", String(params.idCliente));
+  if (params?.idComerciante) {
+    searchParams.set("idComerciante", String(params.idComerciante));
+  }
+  if (params?.fechaDesde) searchParams.set("fechaDesde", params.fechaDesde);
+  if (params?.fechaHasta) searchParams.set("fechaHasta", params.fechaHasta);
+  if (params?.montoMin != null) searchParams.set("montoMin", String(params.montoMin));
+  if (params?.montoMax != null) searchParams.set("montoMax", String(params.montoMax));
+
+  searchParams.set("page", String(params?.page ?? 0));
+  searchParams.set("size", String(params?.size ?? 10));
+
+  return request<PageResponse<Cotizacion>>(
+    `/api/cotizaciones/filtrar?${searchParams.toString()}`
   );
 }
 

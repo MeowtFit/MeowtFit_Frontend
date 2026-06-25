@@ -22,36 +22,41 @@ type SidebarOption = {
 };
 
 const sidebarOptions: SidebarOption[] = [
-  {
-    label: "Dashboard",
-    path: "/admin/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Inventario",
-    path: "/admin/inventario",
-    icon: Boxes,
-  },
-  {
-    label: "Ventas",
-    path: "/admin/ventas",
-    icon: ChartColumn,
-  },
-  {
-    label: "Cotizaciones",
-    path: "/admin/cotizaciones",
-    icon: ClipboardList,
-  },
-  {
-    label: "Comerciantes",
-    path: "/admin/comerciantes",
-    icon: Store,
-  },
-  {
-    label: "Ajustes",
-    path: "/admin/configuracion",
-    icon: Settings,
-  },
+    {
+        label: "Dashboard",
+        path: "/admin/dashboard",
+        icon: LayoutDashboard,
+    },
+    {
+        label: "Inventario",
+        path: "/admin/inventario",
+        icon: Boxes,
+    },
+    {
+        label: "Pedidos",
+        path: "/admin/pedidos",
+        icon: ShoppingBag,
+    },
+    {
+        label: "Ventas",
+        path: "/admin/ventas",
+        icon: ChartColumn,
+    },
+    {
+        label: "Cotizaciones",
+        path: "/admin/cotizaciones",
+        icon: ClipboardList,
+    },
+    {
+        label: "Comerciantes",
+        path: "/admin/comerciantes",
+        icon: Store,
+    },
+    {
+        label: "Ajustes",
+        path: "/admin/configuracion",
+        icon: Settings,
+    },
 ];
 
 export default function Sidebar() {

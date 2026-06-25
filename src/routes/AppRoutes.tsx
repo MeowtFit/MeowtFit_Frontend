@@ -7,9 +7,16 @@ import SignUpPage from "../pages/login/SignUpPage";
 import LoginPage from "../pages/login/LoginPage";
 import OlvideContraPage from "../pages/login/OlvideContraPage";
 import RecuperarContraPage from "../pages/login/RecuperarContraPage";
+import PerfilUsuarioPage from "../pages/login/PerfilUsuarioPage";
 
 import CarritoPage from "../pages/cliente/carrito/CarritoPage";
 import PedidosListPage from "../pages/cliente/pedido/PedidosListPage";
+
+import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
+import CotizacionesClientePage from "../pages/cliente/cotizacion/CotizacionClientePage";
+import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
+
+import PersonalizarPrenda from "../pages/PersonalizarPrenda";
 
 import CatalogLayout from "../components/layout/CatalogLayout";
 import AdminLayout from "../components/layout/AdminLayout";
@@ -24,6 +31,8 @@ import CotizacionesPage from "../pages/admin/CotizacionesPage";
 import DashboardPage from "../pages/admin/DashboardPage";
 import InventarioPage from "../pages/admin/InventarioPage";
 import VentasPage from "../pages/admin/VentasPage";
+import PedidosGestionPage from "../pages/admin/PedidosGestionPage";
+import PedidosValidarPagoPage from "../pages/admin/PedidosValidarPagoPage";
 
 import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
 import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
@@ -31,12 +40,6 @@ import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage"
 
 import ProtectedRoute from "./ProtectedRoute";
 import AdminIndexRedirect from "./AdminIndexRedirect";
-
-import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
-import PerfilUsuarioPage from "../pages/login/PerfilUsuarioPage";
-
-import CotizacionesClientePage from "../pages/cliente/cotizacion//CotizacionClientePage";
-import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -59,16 +62,20 @@ export const router = createBrowserRouter([
         element: <PedidosListPage />,
       },
       {
-        path: "/cotizaciones/crear",
-        element: <CotizacionCreatePage />,
-      },
-      {
         path: "/cotizaciones",
         element: <CotizacionesClientePage />,
       },
       {
+        path: "/cotizaciones/crear",
+        element: <CotizacionCreatePage />,
+      },
+      {
         path: "/cotizaciones/:id",
         element: <CotizacionClienteDetailPage />,
+      },
+      {
+        path: "/personalizar/:id",
+        element: <PersonalizarPrenda />,
       },
     ],
   },
@@ -104,7 +111,6 @@ export const router = createBrowserRouter([
         index: true,
         element: <AdminIndexRedirect />,
       },
-
       {
         path: "dashboard",
         element: (
@@ -113,7 +119,6 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "inventario",
         element: <InventarioPage />,
@@ -130,7 +135,6 @@ export const router = createBrowserRouter([
         path: "inventario/:id/agregarVariante",
         element: <ProductoNuevaVariantePage />,
       },
-
       {
         path: "ventas",
         element: <VentasPage />,
@@ -139,7 +143,14 @@ export const router = createBrowserRouter([
         path: "cotizaciones",
         element: <CotizacionesPage />,
       },
-
+      {
+        path: "pedidos",
+        element: <PedidosGestionPage />,
+      },
+      {
+        path: "pedidos/validarPago/:id",
+        element: <PedidosValidarPagoPage />,
+      },
       {
         path: "comerciantes",
         element: (
@@ -172,7 +183,6 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
       {
         path: "configuracion",
         element: <ConfiguraciónPage />,

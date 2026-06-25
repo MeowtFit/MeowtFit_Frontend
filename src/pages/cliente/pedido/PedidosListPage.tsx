@@ -12,9 +12,10 @@ import {
 
 import {
   listarMisPedidos,
-  listarTodosPedidos,
   subirComprobante,
-  verificarPago,
+  cambiarEstadoPedido,
+  obtenerComprobantePorPedido,
+  eliminarComprobante,
   type EstadoPedido,
   type Pedido,
 } from "@/api/pedidosApi";
@@ -58,7 +59,7 @@ function formatearFecha(fecha: string): string {
 }
 
 function codigoFactura(pedido: Pedido): string {
-  const num = pedido.idFactura ?? pedido.idPedido;
+  const num = pedido.idPedido;
   return `F${String(num).padStart(3, "0")}`;
 }
 
@@ -82,7 +83,6 @@ export default function PedidosListPage() {
     null
   );
   const [subiendoComprobante, setSubiendoComprobante] = useState(false);
-  const [verificando, setVerificando] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [exitoModal, setExitoModal] = useState<string | null>(null);
 
@@ -91,9 +91,9 @@ export default function PedidosListPage() {
       navigate("/login", { replace: true });
       return;
     }
-
-    if (rol === "COMERCIANTE") {
-      navigate("/", { replace: true });
+    // Admin y Comerciante tienen sus propias vistas en el panel
+    if (rol === "ADMINISTRADOR" || rol === "COMERCIANTE") {
+      navigate("/admin/pedidos", { replace: true });
     }
   }, [navigate, rol]);
 
@@ -102,12 +102,35 @@ export default function PedidosListPage() {
       setCargando(true);
       setError(null);
 
-      const data =
-        rol === "ADMINISTRADOR"
-          ? await listarTodosPedidos()
-          : await listarMisPedidos();
+      const data = await listarMisPedidos();
 
-      setPedidos(data);
+      const dataConComprobantes = await Promise.all(
+        data.map(async (p) => {
+          try {
+            const cp = await obtenerComprobantePorPedido(p.idPedido);
+            if (cp) {
+              return {
+                ...p,
+                tieneComprobante: true,
+                archivoComprobante: cp.archivo,
+                idFactura: cp.idComprobante,
+              };
+            }
+          } catch (e) {
+            console.error("Error al obtener comprobante:", e);
+          }
+          return {
+            ...p,
+            tieneComprobante: false,
+            archivoComprobante: null,
+          };
+        })
+      );
+
+      // Ordenar pedidos en orden descendente (último pedido arriba)
+      dataConComprobantes.sort((a, b) => b.idPedido - a.idPedido);
+
+      setPedidos(dataConComprobantes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar pedidos.");
     } finally {
@@ -116,7 +139,7 @@ export default function PedidosListPage() {
   }
 
   useEffect(() => {
-    if (rol === "CLIENTE" || rol === "ADMINISTRADOR") {
+    if (rol === "CLIENTE") {
       void cargarPedidos();
     }
   }, []);
@@ -164,11 +187,27 @@ export default function PedidosListPage() {
       setSubiendoComprobante(true);
       setErrorModal(null);
 
-      await subirComprobante(modalPedido.idPedido, archivoSeleccionado);
+      if (modalPedido.estado === "PAGO_RECHAZADO" && modalPedido.idFactura) {
+        try {
+          await eliminarComprobante(modalPedido.idFactura);
+        } catch (e) {
+          console.error("Error al eliminar comprobante anterior:", e);
+        }
+      }
+
+      const cp = await subirComprobante(modalPedido.idPedido, archivoSeleccionado);
+
+      let nuevoEstado = modalPedido.estado;
+      if (modalPedido.estado === "PAGO_RECHAZADO") {
+        await cambiarEstadoPedido(modalPedido.idPedido, "REGISTRADO");
+        nuevoEstado = "REGISTRADO";
+      }
 
       const pedidoActualizado = {
         ...modalPedido,
         tieneComprobante: true,
+        estado: nuevoEstado,
+        idFactura: cp.idComprobante,
       };
 
       setPedidos((prev) =>
@@ -186,38 +225,6 @@ export default function PedidosListPage() {
       );
     } finally {
       setSubiendoComprobante(false);
-    }
-  }
-
-  async function handleVerificarPago() {
-    if (!modalPedido) return;
-
-    try {
-      setVerificando(true);
-      setErrorModal(null);
-
-      await verificarPago(modalPedido.idPedido);
-
-      setExitoModal("Pago verificado correctamente.");
-
-      setPedidos((prev) =>
-        prev.map((p) =>
-          p.idPedido === modalPedido.idPedido
-            ? { ...p, estado: "CONFIRMADO" as EstadoPedido }
-            : p
-        )
-      );
-
-      setTimeout(() => {
-        cerrarModal();
-        void cargarPedidos();
-      }, 1200);
-    } catch (err) {
-      setErrorModal(
-        err instanceof Error ? err.message : "Error al verificar el pago."
-      );
-    } finally {
-      setVerificando(false);
     }
   }
 
@@ -252,7 +259,7 @@ export default function PedidosListPage() {
     );
   }
 
-  if (!rol || rol === "COMERCIANTE") return null;
+  if (!rol || rol === "ADMINISTRADOR" || rol === "COMERCIANTE") return null;
 
   if (cargando) {
     return (
@@ -262,276 +269,7 @@ export default function PedidosListPage() {
             Cargando pedidos...
           </p>
         </main>
-
         <Footer />
-      </div>
-    );
-  }
-
-  if (rol === "ADMINISTRADOR") {
-    return (
-      <div className="flex min-h-[calc(100vh-66px)] flex-col bg-[#f4f8fb]">
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold text-slate-800">
-                Verificación de Pedidos
-              </h1>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Revisa los comprobantes subidos por los compradores y confirma
-                los pagos.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void cargarPedidos()}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#087f99] transition hover:bg-cyan-50"
-            >
-              Actualizar
-            </button>
-          </div>
-
-          {error && (
-            <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          {pedidos.length === 0 ? (
-            <div className="rounded-2xl bg-white p-16 text-center shadow-sm">
-              <p className="text-lg font-bold text-slate-700">
-                No hay pedidos registrados.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-4 text-left">Factura</th>
-                    <th className="px-5 py-4 text-left">ID Cliente</th>
-                    <th className="px-5 py-4 text-left">Fecha</th>
-                    <th className="px-5 py-4 text-left">Estado</th>
-                    <th className="px-5 py-4 text-left">Comprobante</th>
-                    <th className="px-5 py-4 text-left">Monto</th>
-                    <th className="px-5 py-4 text-left">Acción</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {pedidos.map((pedido) => {
-                    const cancelado = esCancelado(pedido.estado);
-
-                    return (
-                      <tr
-                        key={pedido.idPedido}
-                        className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50"
-                      >
-                        <td className="px-5 py-4 font-semibold text-slate-800">
-                          {codigoFactura(pedido)}
-                        </td>
-
-                        <td className="px-5 py-4 text-slate-500">
-                          {pedido.idUsuario ?? "—"}
-                        </td>
-
-                        <td className="px-5 py-4 text-slate-500">
-                          {formatearFecha(pedido.fechaHoraRegistro)}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold ${
-                              cancelado
-                                ? "bg-red-50 text-red-500"
-                                : "bg-cyan-50 text-[#087f99]"
-                            }`}
-                          >
-                            {pedido.estado}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {pedido.tieneComprobante ? (
-                            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-600">
-                              Subido
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-500">
-                              Pendiente
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 font-bold text-[#bd2d73]">
-                          {formatearPrecio(Number(pedido.montoTotal))}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            onClick={() => abrirModal(pedido)}
-                            className="rounded-lg border border-[#087f99] px-3 py-1.5 text-xs font-semibold text-[#087f99] transition hover:bg-cyan-50"
-                          >
-                            Ver detalles
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </main>
-
-        <Footer />
-
-        {modalPedido && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={cerrarModal}
-          >
-            <div
-              className="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-6 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={cerrarModal}
-                  className="flex items-center gap-1 text-sm font-semibold text-[#087f99] hover:underline"
-                >
-                  <ArrowLeft size={16} /> Volver
-                </button>
-
-                <span className="text-base font-extrabold text-[#087f99]">
-                  MEOWTFIT
-                </span>
-
-                <button
-                  type="button"
-                  onClick={cerrarModal}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <h2 className="text-xl font-bold text-slate-800">
-                Pedido {codigoFactura(modalPedido)}
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Fecha: {formatearFecha(modalPedido.fechaHoraRegistro)} · Estado:{" "}
-                <span
-                  className={`font-semibold ${
-                    esCancelado(modalPedido.estado)
-                      ? "text-red-500"
-                      : "text-[#087f99]"
-                  }`}
-                >
-                  {modalPedido.estado}
-                </span>
-              </p>
-
-              <div className="mt-5 max-h-56 space-y-3 overflow-y-auto pr-1">
-                {modalPedido.lineas.map((linea) => (
-                  <div
-                    key={linea.idLineaPedido}
-                    className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={normalizarImagen(linea.variante?.imagenUrl)}
-                        alt={linea.variante?.nombreProducto ?? "Prenda"}
-                        className="h-12 w-12 rounded-lg object-cover"
-                      />
-
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          {linea.variante?.nombreProducto ?? "Producto"}
-                          {linea.variante?.talla
-                            ? ` — Talla ${linea.variante.talla}`
-                            : ""}
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {linea.cantidad} ×{" "}
-                          {formatearPrecio(Number(linea.precioUnitario))}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
-                      {formatearPrecio(Number(linea.subtotal))}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 font-bold text-slate-800">
-                <span>Total</span>
-                <span className="text-lg text-[#bd2d73]">
-                  {formatearPrecio(Number(modalPedido.montoTotal))}
-                </span>
-              </div>
-
-              <div className="mt-5">
-                {modalPedido.tieneComprobante ? (
-                  <div className="rounded-xl bg-green-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-green-700">
-                      ✓ El comprador ha subido su comprobante.
-                    </p>
-
-                    {modalPedido.archivoComprobante && (
-                      <a
-                        href={normalizarImagen(modalPedido.archivoComprobante)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 inline-block text-xs font-medium text-[#087f99] underline"
-                      >
-                        Ver archivo del comprobante
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-amber-50 px-4 py-3">
-                    <p className="text-sm font-medium text-amber-600">
-                      ⚠ El comprador aún no ha subido su comprobante.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {errorModal && (
-                <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-                  {errorModal}
-                </p>
-              )}
-
-              {exitoModal && (
-                <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-600">
-                  {exitoModal}
-                </p>
-              )}
-
-              {modalPedido.tieneComprobante &&
-                modalPedido.estado === "REGISTRADO" && (
-                  <button
-                    type="button"
-                    onClick={() => void handleVerificarPago()}
-                    disabled={verificando}
-                    className="mt-5 w-full rounded-xl bg-[#087f99] py-3.5 text-sm font-bold text-white transition hover:bg-[#076f86] disabled:opacity-60"
-                  >
-                    {verificando ? "Verificando..." : "Verificar pago"}
-                  </button>
-                )}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -568,8 +306,22 @@ export default function PedidosListPage() {
               <>
                 <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   {pedidosVisibles.map((pedido, index) => {
-                    const cancelado = esCancelado(pedido.estado);
-                    const etiqueta = cancelado ? "CANCELADA" : "PENDIENTE";
+                    let etiqueta = "PENDIENTE";
+                    let colorClass = "text-orange-500";
+
+                    if (pedido.estado === "CONFIRMADO") {
+                      etiqueta = "CONFIRMADO";
+                      colorClass = "text-green-600";
+                    } else if (pedido.estado === "PAGO_RECHAZADO") {
+                      etiqueta = "PAGO RECHAZADO";
+                      colorClass = "text-red-600";
+                    } else if (pedido.estado === "CANCELADO") {
+                      etiqueta = "CANCELADA";
+                      colorClass = "text-slate-500";
+                    } else if (pedido.tieneComprobante) {
+                      etiqueta = "COMPROBANTE SUBIDO";
+                      colorClass = "text-yellow-600 font-extrabold";
+                    }
 
                     const imagenesPrendas = pedido.lineas
                       .slice(0, 2)
@@ -583,11 +335,10 @@ export default function PedidosListPage() {
                     return (
                       <div
                         key={pedido.idPedido}
-                        className={`relative px-6 py-5 ${
-                          index < pedidosVisibles.length - 1
-                            ? "border-b border-slate-200"
-                            : ""
-                        }`}
+                        className={`relative px-6 py-5 ${index < pedidosVisibles.length - 1
+                          ? "border-b border-slate-200"
+                          : ""
+                          }`}
                       >
                         <button
                           type="button"
@@ -629,7 +380,7 @@ export default function PedidosListPage() {
                                 Detalles
                               </button>
 
-                              <span className="text-sm font-bold tracking-wide text-[#bd2d73]">
+                              <span className={`text-sm font-bold tracking-wide ${colorClass}`}>
                                 {etiqueta}
                               </span>
                             </div>
@@ -763,82 +514,81 @@ export default function PedidosListPage() {
               </span>
             </div>
 
-            {esCancelado(modalPedido.estado) || modalPedido.tieneComprobante ? (
-              <>
-                <h2 className="text-xl font-bold text-slate-800">
-                  Detalle del pedido
-                </h2>
+            {/* Cabecera común */}
+            <h2 className="text-xl font-bold text-slate-800">
+              {modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO")
+                ? "Detalle del pedido"
+                : "Detalles y subir comprobante"}
+            </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Factura {codigoFactura(modalPedido)} —{" "}
-                  {formatearFecha(modalPedido.fechaHoraRegistro)}
+            <p className="mt-1 text-sm text-slate-500">
+              Factura {codigoFactura(modalPedido)} —{" "}
+              {formatearFecha(modalPedido.fechaHoraRegistro)}
+            </p>
+
+            {/* Mensaje de Estado / Indicación de verificación */}
+            {modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO") ? (
+              modalPedido.tieneComprobante &&
+              !esCancelado(modalPedido.estado) && (
+                <p className="mt-1 text-xs font-medium text-green-600">
+                  {modalPedido.estado === "CONFIRMADO"
+                    ? "✓ Comprobante verificado"
+                    : "✓ Comprobante enviado — en espera de verificación"}
                 </p>
+              )
+            ) : (
+              <p className="mt-1 text-sm font-bold text-[#bd2d73]">
+                Estado: {modalPedido.estado === "PAGO_RECHAZADO" ? "PAGO RECHAZADO" : "PENDIENTE"}
+              </p>
+            )}
 
-                {modalPedido.tieneComprobante &&
-                  !esCancelado(modalPedido.estado) && (
-                    <p className="mt-1 text-xs font-medium text-green-600">
-                      ✓ Comprobante enviado — en espera de verificación
-                    </p>
-                  )}
+            {/* Lineas de pedido asociadas (Siempre visibles) */}
+            <div className="mt-6 max-h-48 space-y-4 overflow-y-auto pr-1">
+              {modalPedido.lineas.map((linea) => (
+                <div
+                  key={linea.idLineaPedido}
+                  className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={normalizarImagen(linea.variante?.imagenUrl)}
+                      alt={linea.variante?.nombreProducto ?? "Prenda"}
+                      className="h-14 w-11 rounded-lg object-cover"
+                    />
 
-                <div className="mt-6 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {modalPedido.lineas.map((linea) => (
-                    <div
-                      key={linea.idLineaPedido}
-                      className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={normalizarImagen(linea.variante?.imagenUrl)}
-                          alt={linea.variante?.nombreProducto ?? "Prenda"}
-                          className="h-14 w-11 rounded-lg object-cover"
-                        />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {linea.variante?.nombreProducto ?? "Producto"}
+                        {linea.variante?.talla
+                          ? ` — Talla ${linea.variante.talla}`
+                          : ""}
+                      </p>
 
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">
-                            {linea.variante?.nombreProducto ?? "Producto"}
-                            {linea.variante?.talla
-                              ? ` — Talla ${linea.variante.talla}`
-                              : ""}
-                          </p>
-
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            {linea.cantidad} ×{" "}
-                            {formatearPrecio(Number(linea.precioUnitario))}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
-                        {formatearPrecio(Number(linea.subtotal))}
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {linea.cantidad} ×{" "}
+                        {formatearPrecio(Number(linea.precioUnitario))}
                       </p>
                     </div>
-                  ))}
+                  </div>
+
+                  <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
+                    {formatearPrecio(Number(linea.subtotal))}
+                  </p>
                 </div>
+              ))}
+            </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
-                  <span className="font-bold text-slate-800">Total</span>
+            <div className="mt-5 flex items-center justify-between border-t border-slate-200 py-4">
+              <span className="font-bold text-slate-800">Total</span>
 
-                  <span className="text-lg font-extrabold text-[#bd2d73]">
-                    {formatearPrecio(Number(modalPedido.montoTotal))}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold text-slate-800">
-                  Detalles y subir comprobante
-                </h2>
+              <span className="text-lg font-extrabold text-[#bd2d73]">
+                {formatearPrecio(Number(modalPedido.montoTotal))}
+              </span>
+            </div>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Factura {codigoFactura(modalPedido)} —{" "}
-                  {formatearFecha(modalPedido.fechaHoraRegistro)}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#bd2d73]">
-                  Estado: PENDIENTE
-                </p>
-
+            {/* Sección condicional para subir comprobante si aplica */}
+            {!(modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO")) && (
+              <div className="mt-2 border-t border-slate-100 pt-4">
                 {errorModal && (
                   <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
                     {errorModal}
@@ -888,7 +638,7 @@ export default function PedidosListPage() {
                       fileInputRef.current?.click();
                     }
                   }}
-                  className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f99] py-4 text-base font-bold text-white transition hover:bg-[#076f86] disabled:opacity-60"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f99] py-4 text-base font-bold text-white transition hover:bg-[#076f86] disabled:opacity-60"
                 >
                   {subiendoComprobante ? (
                     "Subiendo..."
@@ -915,7 +665,7 @@ export default function PedidosListPage() {
                     Cambiar archivo
                   </button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

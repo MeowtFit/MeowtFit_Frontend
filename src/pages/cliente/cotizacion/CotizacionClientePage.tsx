@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -17,7 +17,14 @@ import {
   type EstadoCotizacion,
 } from "@/api/cotizacionesApi";
 
-const ITEMS_POR_PAGINA = 5;
+const ITEMS_POR_PAGINA = 6;
+
+type ResumenCotizaciones = {
+  total: number;
+  pendientes: number;
+  contrapropuestas: number;
+  finalizadas: number;
+};
 
 function obtenerSesionUsuario() {
   const correo =
@@ -65,11 +72,9 @@ function normalizarEstado(estado?: string | null): EstadoCotizacion {
 
   if (
     estadoUpper === "PENDIENTE" ||
-    estadoUpper === "ACEPTADA" ||
-    estadoUpper === "APROBADA" ||
-    estadoUpper === "RECHAZADA" ||
     estadoUpper === "CONTRAPROPUESTA" ||
-    estadoUpper === "CANCELADA"
+    estadoUpper === "RECHAZADA" ||
+    estadoUpper === "CERRADA"
   ) {
     return estadoUpper as EstadoCotizacion;
   }
@@ -82,11 +87,9 @@ function etiquetaEstado(estado?: string | null) {
 
   const etiquetas: Record<EstadoCotizacion, string> = {
     PENDIENTE: "Pendiente",
-    ACEPTADA: "Aceptada",
-    APROBADA: "Aprobada",
+    CONTRAPROPUESTA: "Contrapropuesta",
     RECHAZADA: "Rechazada",
-    CONTRAPROPUESTA: "Contrapropuesta recibida",
-    CANCELADA: "Cancelada",
+    CERRADA: "Cerrada",
   };
 
   return etiquetas[estadoNormalizado];
@@ -99,15 +102,23 @@ function claseEstado(estado?: string | null) {
     return "bg-amber-50 text-amber-600";
   }
 
-  if (estadoNormalizado === "ACEPTADA" || estadoNormalizado === "APROBADA") {
-    return "bg-emerald-50 text-emerald-600";
-  }
-
   if (estadoNormalizado === "CONTRAPROPUESTA") {
     return "bg-cyan-50 text-[#087f99]";
   }
 
+  if (estadoNormalizado === "CERRADA") {
+    return "bg-emerald-50 text-emerald-600";
+  }
+
   return "bg-red-50 text-red-600";
+}
+
+function obtenerMontoRealTexto(cotizacion: Cotizacion) {
+  if (cotizacion.montoReal === null || cotizacion.montoReal === undefined) {
+    return "Sin respuesta";
+  }
+
+  return formatearPrecio(cotizacion.montoReal);
 }
 
 export default function CotizacionClientePage() {
@@ -117,7 +128,15 @@ export default function CotizacionClientePage() {
   const [pagina, setPagina] = useState(0);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [totalElementos, setTotalElementos] = useState(0);
+
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoCotizacion | "">("");
+
+  const [resumen, setResumen] = useState<ResumenCotizaciones>({
+    total: 0,
+    pendientes: 0,
+    contrapropuestas: 0,
+    finalizadas: 0,
+  });
 
   const [cargando, setCargando] = useState(true);
   const [recargando, setRecargando] = useState(false);
@@ -142,8 +161,52 @@ export default function CotizacionClientePage() {
       return;
     }
 
-    void cargarCotizaciones(0, estadoFiltro);
+    void cargarCotizaciones(0, "");
+    void cargarResumen();
   }, [navigate]);
+
+  async function cargarResumen() {
+    try {
+      const [todas, pendientes, contrapropuestas, cerradas, rechazadas] =
+        await Promise.all([
+          filtrarMisCotizaciones({
+            page: 0,
+            size: 1,
+          }),
+          filtrarMisCotizaciones({
+            estado: "PENDIENTE",
+            page: 0,
+            size: 1,
+          }),
+          filtrarMisCotizaciones({
+            estado: "CONTRAPROPUESTA",
+            page: 0,
+            size: 1,
+          }),
+          filtrarMisCotizaciones({
+            estado: "CERRADA",
+            page: 0,
+            size: 1,
+          }),
+          filtrarMisCotizaciones({
+            estado: "RECHAZADA",
+            page: 0,
+            size: 1,
+          }),
+        ]);
+
+      setResumen({
+        total: todas.totalElements ?? 0,
+        pendientes: pendientes.totalElements ?? 0,
+        contrapropuestas: contrapropuestas.totalElements ?? 0,
+        finalizadas:
+          Number(cerradas.totalElements ?? 0) +
+          Number(rechazadas.totalElements ?? 0),
+      });
+    } catch {
+      // No bloquea el listado si el resumen falla.
+    }
+  }
 
   async function cargarCotizaciones(
     nuevaPagina = pagina,
@@ -206,32 +269,10 @@ export default function CotizacionClientePage() {
     void cargarCotizaciones(0, estado);
   }
 
-  const resumen = useMemo(() => {
-    const pendientes = cotizaciones.filter(
-      (c) => normalizarEstado(c.estado) === "PENDIENTE"
-    ).length;
-
-    const contrapropuestas = cotizaciones.filter(
-      (c) => normalizarEstado(c.estado) === "CONTRAPROPUESTA"
-    ).length;
-
-    const cerradas = cotizaciones.filter((c) => {
-      const estado = normalizarEstado(c.estado);
-
-      return (
-        estado === "ACEPTADA" ||
-        estado === "APROBADA" ||
-        estado === "RECHAZADA" ||
-        estado === "CANCELADA"
-      );
-    }).length;
-
-    return {
-      pendientes,
-      contrapropuestas,
-      cerradas,
-    };
-  }, [cotizaciones]);
+  async function handleActualizar() {
+    await cargarCotizaciones(pagina, estadoFiltro);
+    await cargarResumen();
+  }
 
   if (cargando) {
     return (
@@ -245,7 +286,7 @@ export default function CotizacionClientePage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-66px)] bg-[#f7fafc] px-6 py-10">
+    <main className="min-h-[calc(100vh-66px)] bg-[#f7fafc] px-5 py-8 md:px-7 md:py-10">
       <div className="mx-auto max-w-7xl">
         <Link
           to="/perfil"
@@ -255,41 +296,41 @@ export default function CotizacionClientePage() {
           Volver al perfil
         </Link>
 
-        <section className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <section className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#bd2d73]">
               Mis solicitudes
             </p>
 
-            <h1 className="mt-2 text-4xl font-extrabold text-slate-900">
+            <h1 className="mt-2 text-4xl font-extrabold text-slate-900 md:text-5xl">
               Mis cotizaciones
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Revisa tus cotizaciones, contrapropuestas y estados de negociación.
+            <p className="mt-2 max-w-2xl text-sm text-slate-500">
+              Revisa tus cotizaciones, respuestas del comerciante y estado de
+              negociación.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
             <select
               value={estadoFiltro}
               onChange={(event) =>
                 handleCambiarEstado(event.target.value as EstadoCotizacion | "")
               }
-              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none focus:border-[#087f99]"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none focus:border-[#087f99] sm:w-56"
             >
               <option value="">Todas</option>
               <option value="PENDIENTE">Pendientes</option>
               <option value="CONTRAPROPUESTA">Con contrapropuesta</option>
-              <option value="ACEPTADA">Aceptadas</option>
+              <option value="CERRADA">Cerradas</option>
               <option value="RECHAZADA">Rechazadas</option>
-              <option value="CANCELADA">Canceladas</option>
             </select>
 
             <Button
               type="button"
               variant="outline"
-              onClick={() => void cargarCotizaciones(pagina, estadoFiltro)}
+              onClick={() => void handleActualizar()}
               disabled={recargando}
               className="h-11 rounded-xl border-[#087f99] font-bold text-[#087f99] hover:bg-cyan-50"
             >
@@ -303,13 +344,14 @@ export default function CotizacionClientePage() {
           </div>
         </section>
 
-        <section className="mb-8 grid gap-4 md:grid-cols-4">
+        <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
               Total
             </p>
+
             <p className="mt-2 text-3xl font-extrabold text-slate-900">
-              {totalElementos}
+              {resumen.total || totalElementos}
             </p>
           </article>
 
@@ -317,6 +359,7 @@ export default function CotizacionClientePage() {
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
               Pendientes
             </p>
+
             <p className="mt-2 text-3xl font-extrabold text-amber-500">
               {resumen.pendientes}
             </p>
@@ -326,6 +369,7 @@ export default function CotizacionClientePage() {
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
               Contrapropuestas
             </p>
+
             <p className="mt-2 text-3xl font-extrabold text-[#087f99]">
               {resumen.contrapropuestas}
             </p>
@@ -333,10 +377,11 @@ export default function CotizacionClientePage() {
 
           <article className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-              Cerradas
+              Finalizadas
             </p>
+
             <p className="mt-2 text-3xl font-extrabold text-[#bd2d73]">
-              {resumen.cerradas}
+              {resumen.finalizadas}
             </p>
           </article>
         </section>
@@ -348,7 +393,7 @@ export default function CotizacionClientePage() {
         )}
 
         {cotizaciones.length === 0 ? (
-          <section className="rounded-2xl bg-white p-16 text-center shadow-sm">
+          <section className="rounded-2xl bg-white p-12 text-center shadow-sm md:p-16">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-cyan-50 text-[#087f99]">
               <FileText size={26} />
             </div>
@@ -370,36 +415,25 @@ export default function CotizacionClientePage() {
           </section>
         ) : (
           <>
-            <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="hidden grid-cols-[130px_160px_1fr_180px_180px_130px] border-b border-slate-100 bg-slate-50 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 lg:grid">
-                <span>Código</span>
-                <span>Estado</span>
-                <span>Sustento</span>
-                <span>Precio sugerido</span>
-                <span>Monto sugerido</span>
-                <span>Acción</span>
-              </div>
-
+            <section className="grid gap-5 lg:grid-cols-2">
               {cotizaciones.map((cotizacion) => (
                 <article
                   key={cotizacion.idCotizacion}
-                  className="grid gap-4 border-b border-slate-100 px-6 py-5 last:border-0 lg:grid-cols-[130px_160px_1fr_180px_180px_130px] lg:items-center"
+                  className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Cotización
-                    </p>
-                    <p className="mt-1 text-lg font-extrabold text-slate-800">
-                      #{cotizacion.idCotizacion}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {formatearFecha(cotizacion.fechaCreacion)}
-                    </p>
-                  </div>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#bd2d73]">
+                        Cotización #{cotizacion.idCotizacion}
+                      </p>
 
-                  <div>
+                      <p className="mt-2 text-xs font-semibold text-slate-400">
+                        {formatearFecha(cotizacion.fechaCreacion)}
+                      </p>
+                    </div>
+
                     <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${claseEstado(
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${claseEstado(
                         cotizacion.estado
                       )}`}
                     >
@@ -407,26 +441,74 @@ export default function CotizacionClientePage() {
                     </span>
                   </div>
 
-                  <p className="line-clamp-2 text-sm text-slate-600">
-                    {cotizacion.sustento || "Sin sustento registrado."}
-                  </p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Producto
+                      </p>
 
-                  <p className="text-lg font-extrabold text-slate-800">
-                    {formatearPrecio(cotizacion.precioSugerido)}
-                  </p>
+                      <p className="mt-1 text-sm font-extrabold text-slate-800">
+                        #{cotizacion.idProducto}
+                      </p>
+                    </div>
 
-                  <p className="text-xl font-extrabold text-[#bd2d73]">
-                    {formatearPrecio(cotizacion.montoSugerido)}
-                  </p>
+                    <div className="rounded-xl bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Precio unitario
+                      </p>
+
+                      <p className="mt-1 text-sm font-extrabold text-slate-800">
+                        {formatearPrecio(cotizacion.precioSugerido)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Sustento
+                    </p>
+
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                      {cotizacion.sustento || "Sin sustento registrado."}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-pink-100 bg-pink-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Total solicitado
+                      </p>
+
+                      <p className="mt-1 text-2xl font-extrabold text-[#bd2d73]">
+                        {formatearPrecio(cotizacion.montoSugerido)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Monto real / respuesta
+                      </p>
+
+                      <p
+                        className={`mt-1 text-lg font-extrabold ${
+                          cotizacion.montoReal != null
+                            ? "text-[#087f99]"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {obtenerMontoRealTexto(cotizacion)}
+                      </p>
+                    </div>
+                  </div>
 
                   <Button
                     asChild
                     variant="outline"
-                    className="h-10 rounded-xl border-[#087f99] font-bold text-[#087f99] hover:bg-cyan-50"
+                    className="mt-5 h-11 w-full rounded-xl border-[#087f99] font-bold text-[#087f99] hover:bg-cyan-50"
                   >
                     <Link to={`/cotizaciones/${cotizacion.idCotizacion}`}>
                       <Eye size={16} />
-                      Ver
+                      Ver detalle
                     </Link>
                   </Button>
                 </article>
@@ -436,7 +518,7 @@ export default function CotizacionClientePage() {
             <div className="mt-8 flex items-center justify-center gap-3">
               <button
                 type="button"
-                disabled={pagina === 0}
+                disabled={pagina === 0 || recargando}
                 onClick={() => void cargarCotizaciones(pagina - 1, estadoFiltro)}
                 className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-[#087f99] hover:text-[#087f99] disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -449,7 +531,7 @@ export default function CotizacionClientePage() {
 
               <button
                 type="button"
-                disabled={pagina + 1 >= totalPaginas}
+                disabled={pagina + 1 >= totalPaginas || recargando}
                 onClick={() => void cargarCotizaciones(pagina + 1, estadoFiltro)}
                 className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-[#087f99] hover:text-[#087f99] disabled:cursor-not-allowed disabled:opacity-40"
               >

@@ -14,6 +14,15 @@ import {
     type VarianteProducto,
 } from "@/api/productosApi";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function normalizarImagen(url?: string | null): string {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+    return url;
+}
+
 // Diccionario de tallas dinámicas
 const OPCIONES_TALLAS: Record<string, string[]> = {
     'blusas': ['S', 'M', 'L', 'XL'],
@@ -52,6 +61,7 @@ export default function ProductoNuevaVariantePage() {
     // Campos para añadir nueva variante local
     const [tallaSeleccionada, setTallaSeleccionada] = useState("");
     const [idColorSeleccionado, setIdColorSeleccionado] = useState("");
+    const [dropdownColorOpen, setDropdownColorOpen] = useState(false);
     const [stockInput, setStockInput] = useState("0");
     const [errorVariante, setErrorVariante] = useState<string | null>(null);
 
@@ -303,7 +313,7 @@ export default function ProductoNuevaVariantePage() {
                                 <label className="text-xs font-medium text-zinc-500">Imagen</label>
                                 <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden">
                                     <img
-                                        src={imagenUrl}
+                                        src={normalizarImagen(imagenUrl)}
                                         alt="Vista previa del producto"
                                         className="max-h-full object-contain rounded opacity-75"
                                         onError={(e) => {
@@ -340,18 +350,54 @@ export default function ProductoNuevaVariantePage() {
 
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-zinc-600">2. Color</label>
-                                <select
-                                    value={idColorSeleccionado}
-                                    onChange={(e) => { setIdColorSeleccionado(e.target.value); setErrorVariante(null); }}
-                                    className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99]"
-                                >
-                                    <option value="">Seleccionar...</option>
-                                    {coloresDisponibles.map((color) => (
-                                        <option key={color.idColor} value={color.idColor.toString()}>
-                                            {color.nombre}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDropdownColorOpen(!dropdownColorOpen)}
+                                        className="w-full h-10 px-3 text-sm bg-white border border-zinc-200 rounded-md text-zinc-700 focus:outline-none focus:ring-2 focus:ring-[#087f99] flex items-center justify-between cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {idColorSeleccionado ? (
+                                                <>
+                                                    <span
+                                                        className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                                                        style={{ backgroundColor: colores.find(c => c.idColor === Number(idColorSeleccionado))?.hexadecimal }}
+                                                    />
+                                                    <span className="capitalize">{colores.find(c => c.idColor === Number(idColorSeleccionado))?.nombre}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-zinc-400">Seleccionar...</span>
+                                            )}
+                                        </div>
+                                        <span className="text-zinc-400 text-xs">▼</span>
+                                    </button>
+
+                                    {dropdownColorOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setDropdownColorOpen(false)} />
+                                            <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-zinc-200 rounded-md shadow-lg py-1">
+                                                {coloresDisponibles.map((color) => (
+                                                    <button
+                                                        key={color.idColor}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setIdColorSeleccionado(color.idColor.toString());
+                                                            setDropdownColorOpen(false);
+                                                            setErrorVariante(null);
+                                                        }}
+                                                        className="w-full px-3 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2 capitalize text-zinc-700 cursor-pointer"
+                                                    >
+                                                        <span
+                                                            className="w-3.5 h-3.5 rounded-full border border-zinc-300 shadow-sm"
+                                                            style={{ backgroundColor: color.hexadecimal }}
+                                                        />
+                                                        {color.nombre}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="space-y-1">

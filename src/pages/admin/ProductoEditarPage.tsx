@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, AlertCircle, Layers, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Layers, Trash2, Plus, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,11 +12,22 @@ import {
   obtenerReglasPorProducto,
   eliminarVarianteProducto,
   crearVarianteProducto,
+  subirImagenProducto,
   type Categoria,
   type VarianteProducto,
   type ProductoRequestDTO,
   type ReglaDescuentoRequestDTO
 } from "@/api/productosApi";
+import { obtenerConfiguracionNegocio, type ConfiguracionNegocio } from "@/api/configuracionApi";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+function normalizarImagen(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return url;
+}
 
 const OPCIONES_TALLAS: Record<string, string[]> = {
   'blusas': ['S', 'M', 'L', 'XL'],
@@ -34,12 +45,17 @@ export default function ProductoEditarPage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configuracion, setConfiguracion] = useState<ConfiguracionNegocio | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [precioBase, setPrecioBase] = useState<string>("");
   const [idCategoria, setIdCategoria] = useState<string>("");
   const [imagenUrl, setImagenUrl] = useState("");
+  const [archivoImagen, setArchivoImagen] = useState<File | null>(null);
+  const [previewLocal, setPreviewLocal] = useState<string | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [estado, setEstado] = useState<"ACTIVO" | "INACTIVO">("ACTIVO");
 
   const [variantes, setVariantes] = useState<VarianteProducto[]>([]);
@@ -107,8 +123,21 @@ export default function ProductoEditarPage() {
         const categoriaId = dataProducto.idCategoria ?? dataProducto.categoria?.idCategoria;
         setIdCategoria(categoriaId ? categoriaId.toString() : "");
 
-        setImagenUrl(dataProducto.imagenUrl || "");
+        const urlCargada = dataProducto.imagenUrl || "";
+        if (urlCargada.startsWith("/api/productos/imagen/")) {
+          setImagenUrl(urlCargada);
+          setPreviewLocal(normalizarImagen(urlCargada));
+        } else {
+          setImagenUrl(urlCargada);
+        }
         setEstado(dataProducto.estado || "ACTIVO");
+
+        try {
+          const dataConfig = await obtenerConfiguracionNegocio();
+          setConfiguracion(dataConfig);
+        } catch (errConfig) {
+          console.warn("No se pudo cargar la configuración de negocio:", errConfig);
+        }
 
         try {
           const dataVariantes = await obtenerVariantesPorProducto(Number(id));
@@ -150,6 +179,25 @@ export default function ProductoEditarPage() {
   const tallasDisponibles = categoriaActual
     ? (Object.entries(OPCIONES_TALLAS).find(([key]) => categoriaActual.nombre.toLowerCase().includes(key))?.[1] || ['S', 'M', 'L', 'XL'])
     : ['S', 'M', 'L', 'XL'];
+
+  const handleArchivoSeleccionado = (file: File | null) => {
+    if (!file) return;
+    const permitidos = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!permitidos.includes(file.type)) { setError("Solo se permiten imágenes JPG, PNG, WEBP o GIF."); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("La imagen no puede superar los 10 MB."); return; }
+    setArchivoImagen(file);
+    setImagenUrl("");
+    if (previewLocal && !previewLocal.startsWith("http")) URL.revokeObjectURL(previewLocal);
+    setPreviewLocal(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  const handleQuitarImagen = () => {
+    if (previewLocal && !previewLocal.startsWith("http")) URL.revokeObjectURL(previewLocal);
+    setArchivoImagen(null);
+    setPreviewLocal(null);
+    setImagenUrl("");
+  };
 
   const handleStockChange = (idVariante: number, nuevoStock: number) => {
     setVariantes((prev) =>
@@ -257,6 +305,10 @@ export default function ProductoEditarPage() {
       setErrorRegla("El rango inicial no puede ser mayor que el rango final.");
       return;
     }
+    if (configuracion && max >= configuracion.stockMinimoCotizacion) {
+      setErrorRegla(`El rango final (${max}) no puede superar el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
     if (porcentaje > 100) {
       setErrorRegla("El porcentaje no puede ser mayor a 100%.");
       return;
@@ -312,15 +364,30 @@ export default function ProductoEditarPage() {
       return;
     }
 
+    if (configuracion && reglasDescuento.some(r => r.rangoMaximo >= configuracion.stockMinimoCotizacion)) {
+      setError(`Hay reglas de descuento cuyo rango final supera el stock mínimo de cotización (${configuracion.stockMinimoCotizacion}).`);
+      return;
+    }
+
     try {
       setGuardando(true);
+
+      let urlFinal = imagenUrl.trim() || undefined;
+      if (archivoImagen) {
+        setSubiendoImagen(true);
+        try {
+          urlFinal = await subirImagenProducto(archivoImagen);
+        } finally {
+          setSubiendoImagen(false);
+        }
+      }
 
       const productoDto: ProductoRequestDTO = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || undefined,
         precioBase: Number(precioBase),
         idCategoria: Number(idCategoria),
-        imagenUrl: imagenUrl.trim() || undefined,
+        imagenUrl: urlFinal,
         estado,
         reglasDescuento: reglasDescuento.map(r => ({
           rangoMinimo: r.rangoMinimo,
@@ -393,11 +460,12 @@ export default function ProductoEditarPage() {
 
         <Button
           onClick={handleSubmit}
-          disabled={guardando}
+          disabled={guardando || subiendoImagen}
           className="bg-[#087f99] hover:bg-[#066a80] text-white gap-2 font-medium"
         >
-          {guardando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          Guardar Cambios
+          <Loader2 size={16} className={`animate-spin ${guardando || subiendoImagen ? "" : "hidden"}`} />
+          {!guardando && !subiendoImagen && <Save size={16} />}
+          {subiendoImagen ? "Subiendo imagen..." : guardando ? "Guardando..." : "Guardar Cambios"}
         </Button>
       </div>
 
@@ -439,31 +507,80 @@ export default function ProductoEditarPage() {
             </div>
 
             {/* Imagen */}
-            <div className="space-y-1 mt-2">
+            <div className="space-y-3 mt-2">
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Imagen del Producto</h2>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-700">URL de la Imagen</label>
+
+              {(previewLocal ?? (imagenUrl.startsWith("http") ? imagenUrl : "")) ? (
+                <div className="relative border border-zinc-200 rounded-lg overflow-hidden bg-zinc-50 flex items-center justify-center h-52">
+                  <img
+                    src={previewLocal ?? imagenUrl}
+                    alt="Vista previa del producto"
+                    className="max-h-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=Error+al+cargar"; }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleQuitarImagen}
+                    className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/90 border border-zinc-200 shadow flex items-center justify-center text-zinc-500 hover:text-rose-600 hover:border-rose-300 transition"
+                    title="Cambiar imagen"
+                  >
+                    <X size={13} />
+                  </button>
+                  {archivoImagen && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-white/90 border border-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-600 shadow">
+                      {archivoImagen.name}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <label
+                  htmlFor="input-imagen-editar"
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragOver(false); handleArchivoSeleccionado(e.dataTransfer.files[0] ?? null); }}
+                  className={`flex flex-col items-center justify-center gap-3 h-44 rounded-lg border-2 border-dashed cursor-pointer transition ${dragOver ? "border-[#087f99] bg-cyan-50" : "border-zinc-200 bg-zinc-50 hover:border-[#087f99] hover:bg-cyan-50/50"}`}
+                >
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 text-zinc-400">
+                    <ImageIcon size={20} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Arrastra una imagen aquí o{" "}
+                      <span className="text-[#087f99]">haz clic para seleccionar</span>
+                    </p>
+                    <p className="mt-1 text-[10px] text-zinc-400">JPG, PNG, WEBP · Máx. 10 MB</p>
+                  </div>
+                  <input
+                    id="input-imagen-editar"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => handleArchivoSeleccionado(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-zinc-100" />
+                <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">o pega una URL</span>
+                <div className="h-px flex-1 bg-zinc-100" />
+              </div>
+
+              <div className="flex items-center gap-2">
                 <Input
                   type="url"
                   placeholder="https://images.unsplash.com/..."
-                  value={imagenUrl}
-                  onChange={(e) => setImagenUrl(e.target.value)}
-                  className="border-zinc-200 focus-visible:ring-[#087f99] h-10 text-xs"
+                  value={imagenUrl.startsWith("/api/") ? "" : imagenUrl}
+                  onChange={(e) => { setImagenUrl(e.target.value); if (e.target.value.trim()) { if (previewLocal && !previewLocal.startsWith("http")) URL.revokeObjectURL(previewLocal); setArchivoImagen(null); setPreviewLocal(null); } }}
+                  disabled={Boolean(archivoImagen)}
+                  className="border-zinc-200 focus-visible:ring-[#087f99] h-9 text-xs disabled:opacity-40"
                 />
+                {imagenUrl.startsWith("http") && !archivoImagen && (
+                  <button type="button" onClick={() => setImagenUrl("")} className="shrink-0 text-zinc-400 hover:text-rose-500 transition" title="Limpiar URL">
+                    <X size={15} />
+                  </button>
+                )}
               </div>
-
-              {imagenUrl.trim() && (
-                <div className="border border-zinc-200 rounded-lg p-2 bg-zinc-50 flex justify-center items-center h-40 overflow-hidden mt-3">
-                  <img
-                    src={imagenUrl}
-                    alt="Vista previa del producto"
-                    className="max-h-full object-contain rounded"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=Error+al+cargar+imagen";
-                    }}
-                  />
-                </div>
-              )}
             </div>
           </div>
 
@@ -669,12 +786,43 @@ export default function ProductoEditarPage() {
             </div>
           </div>
 
+          {/* Configuración de Negocio */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Configuración de Negocio</h2>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                Valores establecidos para el stock mínimo de cotización y precio piso.
+              </p>
+            </div>
+            {configuracion ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Stock Mínimo Cotización</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.stockMinimoCotizacion} und
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-zinc-500 block">Porcentaje Precio Piso</span>
+                  <span className="font-mono text-sm font-semibold text-zinc-800 bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-lg block">
+                    {configuracion.porcentajePrecioPiso}%
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="animate-spin text-[#087f99] h-5 w-5 mr-2" />
+                <span className="text-xs text-zinc-500 italic">Cargando configuración de negocio...</span>
+              </div>
+            )}
+          </div>
+
           {/* Reglas de descuento */}
           <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-800 border-b border-zinc-100 pb-2">Reglas de Descuento</h2>
               <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                Establece escalas de descuento según la cantidad total de unidades compradas.
+                Establece escalas de descuento según la cantidad total de unidades compradas. El rango no debe superar el stock minimo de cotización.
               </p>
             </div>
 

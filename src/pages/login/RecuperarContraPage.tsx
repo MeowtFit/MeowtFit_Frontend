@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Lock } from "lucide-react"
+import { Lock, Eye, EyeOff } from "lucide-react" 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import logoMeowtfit from "../../assets/logo.png"
@@ -13,6 +13,10 @@ export default function RecuperarContraPage() {
 
     const [nuevaContrasena, setNuevaContrasena] = useState("")
     const [confirmarContrasena, setConfirmarContrasena] = useState("")
+    
+    const [showNueva, setShowNueva] = useState(false)
+    const [showConfirmar, setShowConfirmar] = useState(false)
+
     const [isLoading, setIsLoading] = useState(false)
     const [message, setMessage] = useState("")
     const [error, setError] = useState("")
@@ -27,6 +31,11 @@ export default function RecuperarContraPage() {
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault()
         
+        if (nuevaContrasena.length < 8) {
+            setError("La contraseña debe tener al menos 8 caracteres.")
+            return
+        }
+
         if (nuevaContrasena !== confirmarContrasena) {
             setError("Las contraseñas no coinciden.")
             return
@@ -53,7 +62,6 @@ export default function RecuperarContraPage() {
 
             if (response.ok) {
                 setMessage(data.mensaje || "Contraseña actualizada exitosamente.")
-                // Redirigir al login después de unos segundos
                 setTimeout(() => {
                     navigate("/login")
                 }, 3000)
@@ -94,34 +102,59 @@ export default function RecuperarContraPage() {
 
                 <form className="space-y-6" onSubmit={handleReset}>
                     <div className="space-y-4">
+                        
+                        {/* NUEVA CONTRASEÑA */}
                         <div className="space-y-2">
                             <Label htmlFor="nuevaContrasena" className="text-xs font-bold text-[#b43b6c] uppercase tracking-wider">
                                 Nueva Contraseña
                             </Label>
-                            <Input 
-                                id="nuevaContrasena" 
-                                type="password" 
-                                value={nuevaContrasena} 
-                                onChange={(e) => setNuevaContrasena(e.target.value)}
-                                className="h-12 bg-[#f9fafb] border-gray-200 focus-visible:ring-[#0a7c98] text-sm"
-                                required
-                                disabled={!token || isLoading}
-                            />
+                            <div className="relative">
+                                <Input 
+                                    id="nuevaContrasena" 
+                                    type={showNueva ? "text" : "password"} 
+                                    value={nuevaContrasena} 
+                                    onChange={(e) => setNuevaContrasena(e.target.value)}
+                                    /* Agregadas las utilidades de prefijo para deshabilitar los ojos por defecto de Edge/IE */
+                                    className="h-12 bg-[#f9fafb] border-gray-200 focus-visible:ring-[#0a7c98] text-sm pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                                    required
+                                    disabled={!token || isLoading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNueva((prev) => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                                    disabled={!token || isLoading}
+                                >
+                                    {showNueva ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                         </div>
 
+                        {/* CONFIRMAR CONTRASEÑA */}
                         <div className="space-y-2">
                             <Label htmlFor="confirmarContrasena" className="text-xs font-bold text-[#b43b6c] uppercase tracking-wider">
                                 Confirmar Contraseña
                             </Label>
-                            <Input 
-                                id="confirmarContrasena" 
-                                type="password" 
-                                value={confirmarContrasena} 
-                                onChange={(e) => setConfirmarContrasena(e.target.value)}
-                                className="h-12 bg-[#f9fafb] border-gray-200 focus-visible:ring-[#0a7c98] text-sm"
-                                required
-                                disabled={!token || isLoading}
-                            />
+                            <div className="relative">
+                                <Input 
+                                    id="confirmarContrasena" 
+                                    type={showConfirmar ? "text" : "password"} 
+                                    value={confirmarContrasena} 
+                                    onChange={(e) => setConfirmarContrasena(e.target.value)}
+                                    /* Agregadas las utilidades de prefijo para deshabilitar los ojos por defecto de Edge/IE */
+                                    className="h-12 bg-[#f9fafb] border-gray-200 focus-visible:ring-[#0a7c98] text-sm pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                                    required
+                                    disabled={!token || isLoading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmar((prev) => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                                    disabled={!token || isLoading}
+                                >
+                                    {showConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 

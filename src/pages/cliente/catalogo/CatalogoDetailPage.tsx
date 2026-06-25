@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, FileText, Minus, Plus, Truck } from "lucide-react";
+import {
+  ChevronLeft,
+  FileText,
+  Minus,
+  Plus,
+  Truck,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,24 +29,23 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";
 
-type VarianteConColor = VarianteProducto & {
+type ColorDTO = {
+  idColor?: number | null;
+  nombre?: string | null;
+  nombreColor?: string | null;
+  hexadecimal?: string | null;
+  codigoHex?: string | null;
+  hex?: string | null;
+};
+
+type VarianteConColor = Omit<VarianteProducto, "color"> & {
   idColor?: number | null;
   nombreColor?: string | null;
   hexadecimal?: string | null;
   codigoHex?: string | null;
   hex?: string | null;
   imagenUrl?: string | null;
-  color?:
-  | string
-  | {
-    idColor?: number | null;
-    nombre?: string | null;
-    nombreColor?: string | null;
-    hexadecimal?: string | null;
-    codigoHex?: string | null;
-    hex?: string | null;
-  }
-  | null;
+  color?: string | ColorDTO | null;
 };
 
 type ColorDisponible = {
@@ -259,6 +266,25 @@ export default function CatalogoDetailPage() {
   const [agregandoCarrito, setAgregandoCarrito] = useState(false);
   const [mensajeCarrito, setMensajeCarrito] = useState<string | null>(null);
 
+  const [zoom, setZoom] = useState(false);
+  const [panPosition, setPanPosition] = useState({ x: 50, y: 50 });
+
+  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
+    if (!zoom) return;
+
+    const { left, top, width, height } =
+      event.currentTarget.getBoundingClientRect();
+
+    const x = ((event.clientX - left) / width) * 100;
+    const y = ((event.clientY - top) / height) * 100;
+
+    setPanPosition({ x, y });
+  }
+
+  function handleMouseLeave() {
+    setPanPosition({ x: 50, y: 50 });
+  }
+
   useEffect(() => {
     async function cargarProducto() {
       if (!idProducto || Number.isNaN(idProducto)) {
@@ -282,6 +308,9 @@ export default function CatalogoDetailPage() {
         if (primeraVarianteConStock) {
           setColorSeleccionado(obtenerClaveColor(primeraVarianteConStock));
           setTallaSeleccionada(primeraVarianteConStock.talla);
+        } else if (data.variantes.length > 0) {
+          setColorSeleccionado(obtenerClaveColor(data.variantes[0]));
+          setTallaSeleccionada(data.variantes[0].talla);
         } else {
           setColorSeleccionado("");
           setTallaSeleccionada("");
@@ -348,6 +377,10 @@ export default function CatalogoDetailPage() {
     ? Number(producto.precioBase) * cantidad
     : 0;
 
+  const hexColorActual =
+    colorSeleccionadoInfo?.hex ??
+    (varianteSeleccionada ? obtenerHexColor(varianteSeleccionada) : null);
+
   function redirigirALogin() {
     navigate("/login", {
       replace: false,
@@ -360,15 +393,15 @@ export default function CatalogoDetailPage() {
   function handleSeleccionarColor(claveColor: string) {
     if (!producto) return;
 
-    if (!colorTieneStock(producto.variantes, claveColor)) {
-      return;
-    }
-
-    const primeraVarianteDisponible = producto.variantes.find(
-      (variante) =>
-        obtenerClaveColor(variante) === claveColor &&
-        varianteTieneStock(variante)
-    );
+    const primeraVarianteDisponible =
+      producto.variantes.find(
+        (variante) =>
+          obtenerClaveColor(variante) === claveColor &&
+          varianteTieneStock(variante)
+      ) ??
+      producto.variantes.find(
+        (variante) => obtenerClaveColor(variante) === claveColor
+      );
 
     if (!primeraVarianteDisponible) return;
 
@@ -379,10 +412,6 @@ export default function CatalogoDetailPage() {
   }
 
   function handleSeleccionarTalla(variante: VarianteProducto) {
-    if (!varianteTieneStock(variante)) {
-      return;
-    }
-
     setTallaSeleccionada(variante.talla);
     setCantidad(1);
     setMensajeCarrito(null);
@@ -409,25 +438,24 @@ export default function CatalogoDetailPage() {
       return;
     }
 
-    if (!producto || !varianteSeleccionada) {
-      setMensajeCarrito("Selecciona una talla y color disponibles.");
-      return;
-    }
-
-    if (cantidad <= 0) {
-      setMensajeCarrito("La cantidad debe ser mayor a cero.");
+    if (!producto) {
+      setMensajeCarrito("No se pudo identificar el producto.");
       return;
     }
 
     navigate("/cotizaciones/crear", {
       state: {
         idProducto: producto.idProducto,
-        idVariante: varianteSeleccionada.idVariante,
-        idColor: obtenerIdColor(varianteSeleccionada),
+        idVariante: varianteSeleccionada?.idVariante ?? null,
+        idColor: varianteSeleccionada
+          ? obtenerIdColor(varianteSeleccionada)
+          : null,
         productoNombre: producto.nombre,
         categoria: producto.categoria?.nombre ?? null,
-        talla: varianteSeleccionada.talla,
-        color: obtenerNombreColor(varianteSeleccionada),
+        talla: varianteSeleccionada?.talla ?? null,
+        color: varianteSeleccionada
+          ? obtenerNombreColor(varianteSeleccionada)
+          : null,
         cantidad,
         precioUnitario: Number(producto.precioBase),
         subtotalReferencial,
@@ -581,12 +609,99 @@ export default function CatalogoDetailPage() {
 
         <section className="grid gap-10 rounded-2xl bg-white p-6 shadow-sm lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <div className="overflow-hidden rounded-xl bg-[#d4b390]">
+            <div
+              className="group relative flex items-center justify-center overflow-hidden rounded-xl"
+              style={{ backgroundColor: "#ffffff", height: "620px" }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+            >
               <img
                 src={imagenPrincipal}
                 alt={producto.nombre}
-                className="h-[620px] w-full object-cover"
+                onClick={(event) => {
+                  if (!zoom) {
+                    const { left, top, width, height } =
+                      event.currentTarget.getBoundingClientRect();
+
+                    const x = ((event.clientX - left) / width) * 100;
+                    const y = ((event.clientY - top) / height) * 100;
+
+                    setPanPosition({ x, y });
+                  }
+
+                  setZoom((actual) => !actual);
+                }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  zIndex: 1,
+                  transform: zoom ? "scale(1.8)" : "scale(1)",
+                  transition: zoom
+                    ? "transform 0.05s ease-out"
+                    : "transform 0.3s ease",
+                  transformOrigin: zoom
+                    ? `${panPosition.x}% ${panPosition.y}%`
+                    : "center",
+                  cursor: zoom ? "zoom-out" : "zoom-in",
+                }}
               />
+
+              {hexColorActual && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 2,
+                    backgroundColor: hexColorActual,
+                    maskImage: `url(${imagenPrincipal})`,
+                    WebkitMaskImage: `url(${imagenPrincipal})`,
+                    maskSize: "contain",
+                    maskRepeat: "no-repeat",
+                    maskPosition: "center",
+                    WebkitMaskSize: "contain",
+                    WebkitMaskRepeat: "no-repeat",
+                    WebkitMaskPosition: "center",
+                    mixBlendMode: "multiply",
+                    pointerEvents: "none",
+                    transition: zoom
+                      ? "transform 0.05s ease-out, background-color 0.3s ease"
+                      : "background-color 0.3s ease, transform 0.3s ease",
+                    transform: zoom ? "scale(1.8)" : "scale(1)",
+                    transformOrigin: zoom
+                      ? `${panPosition.x}% ${panPosition.y}%`
+                      : "center",
+                  }}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => setZoom((actual) => !actual)}
+                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:bg-white focus:outline-none"
+                title={zoom ? "Reducir" : "Ampliar"}
+              >
+                {zoom ? <ZoomOut size={20} /> : <ZoomIn size={20} />}
+              </button>
+
+              {colorSeleccionado && (
+                <div
+                  className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm"
+                  style={{ zIndex: 3 }}
+                >
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-200"
+                    style={{ backgroundColor: hexColorActual ?? "#d1d5db" }}
+                  />
+
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
+                    {colorSeleccionadoInfo?.nombre ??
+                      obtenerNombreColor(varianteSeleccionada)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
@@ -637,7 +752,7 @@ export default function CatalogoDetailPage() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
                 Color:{" "}
                 <span className="text-slate-800">
-                  {colorSeleccionadoInfo?.nombre ?? "Sin stock"}
+                  {colorSeleccionadoInfo?.nombre ?? "Sin color"}
                 </span>
               </p>
 
@@ -652,16 +767,17 @@ export default function CatalogoDetailPage() {
                     <button
                       key={color.clave}
                       type="button"
-                      disabled={sinStock}
                       onClick={() => handleSeleccionarColor(color.clave)}
                       title={sinStock ? `${color.nombre} sin stock` : color.nombre}
-                      className={`grid h-10 w-10 place-items-center rounded-full border transition ${colorSeleccionado === color.clave
-                        ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
-                        : "border-slate-200"
-                        } ${sinStock
-                          ? "cursor-not-allowed opacity-35"
+                      className={`grid h-10 w-10 place-items-center rounded-full border transition ${
+                        colorSeleccionado === color.clave
+                          ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
+                          : "border-slate-200"
+                      } ${
+                        sinStock
+                          ? "opacity-50"
                           : "hover:border-[#bd2d73]"
-                        }`}
+                      }`}
                     >
                       <span
                         className="h-7 w-7 rounded-full border border-slate-200"
@@ -696,15 +812,16 @@ export default function CatalogoDetailPage() {
                     <button
                       key={variante.idVariante}
                       type="button"
-                      disabled={sinStock}
                       onClick={() => handleSeleccionarTalla(variante)}
-                      className={`h-12 rounded-xl border text-sm font-semibold transition ${tallaSeleccionada === variante.talla
-                        ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
-                        } ${sinStock
-                          ? "cursor-not-allowed opacity-40 line-through hover:border-slate-200"
+                      className={`h-12 rounded-xl border text-sm font-semibold transition ${
+                        tallaSeleccionada === variante.talla
+                          ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
+                      } ${
+                        sinStock
+                          ? "opacity-50 line-through hover:border-slate-200"
                           : ""
-                        }`}
+                      }`}
                     >
                       {variante.talla}
                     </button>
@@ -775,34 +892,21 @@ export default function CatalogoDetailPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                navigate("/cotizaciones/crear", {
-                  state: {
-                    idProducto: producto.idProducto,
-                    idVariante: varianteSeleccionada?.idVariante ?? null,
-                    productoNombre: producto.nombre,
-                    categoria: producto.categoria?.nombre ?? null,
-                    talla: varianteSeleccionada?.talla ?? null,
-                    color: varianteSeleccionada
-                      ? obtenerNombreColor(varianteSeleccionada)
-                      : null,
-                    cantidad,
-                    precioUnitario: Number(producto.precioBase),
-                  },
-                })
-              }
+              onClick={irACrearCotizacion}
               disabled={!producto}
               className="mt-4 h-12 w-full rounded-xl border-[#bd2d73] text-xs font-bold uppercase tracking-[0.18em] text-[#bd2d73] hover:bg-pink-50"
             >
+              <FileText size={16} />
               Solicitar cotización
             </Button>
 
             {mensajeCarrito && (
               <p
-                className={`mt-3 text-sm font-semibold ${mensajeCarrito.includes("correctamente")
-                  ? "text-emerald-600"
-                  : "text-red-600"
-                  }`}
+                className={`mt-3 text-sm font-semibold ${
+                  mensajeCarrito.includes("correctamente")
+                    ? "text-emerald-600"
+                    : "text-red-600"
+                }`}
               >
                 {mensajeCarrito}
               </p>
