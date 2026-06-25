@@ -1,15 +1,15 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-import CatalogDetailPage from "../pages/CatalogoDetailPage";
-import CatalogHomePage from "../pages/CatalogoHomePage";
+import CatalogDetailPage from "../pages/cliente/catalogo/CatalogoDetailPage";
+import CatalogHomePage from "../pages/cliente/catalogo/CatalogoHomePage";
 
-import SignUpPage from "../pages/SignUpPage";
-import LoginPage from "../pages/LoginPage";
-import OlvideContraPage from "../pages/OlvideContraPage";
-import RecuperarContraPage from "../pages/RecuperarContraPage";
+import SignUpPage from "../pages/login/SignUpPage";
+import LoginPage from "../pages/login/LoginPage";
+import OlvideContraPage from "../pages/login/OlvideContraPage";
+import RecuperarContraPage from "../pages/login/RecuperarContraPage";
 
-import CarritoPage from "../pages/CarritoPage";
-import PedidosListPage from "../pages/PedidosListPage";
+import CarritoPage from "../pages/cliente/carrito/CarritoPage";
+import PedidosListPage from "../pages/cliente/pedido/PedidosListPage";
 
 import CatalogLayout from "../components/layout/CatalogLayout";
 import AdminLayout from "../components/layout/AdminLayout";
@@ -30,17 +30,13 @@ import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import AdminIndexRedirect from "./AdminIndexRedirect";
 
-function AdminIndexRedirect() {
-  const rol =
-    localStorage.getItem("meowtfit_rol") ||
-    sessionStorage.getItem("meowtfit_rol");
+import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
+import PerfilUsuarioPage from "../pages/login/PerfilUsuarioPage";
 
-  if (rol === "ADMINISTRADOR") {
-    return <Navigate to="/admin/comerciantes" replace />;
-  }
-  return <Navigate to="/admin/inventario" replace />;
-}
+import CotizacionesClientePage from "../pages/cliente/cotizacion//CotizacionClientePage";
+import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -62,7 +58,23 @@ export const router = createBrowserRouter([
         path: "/pedidos",
         element: <PedidosListPage />,
       },
+      {
+        path: "/cotizaciones/crear",
+        element: <CotizacionCreatePage />,
+      },
+      {
+        path: "/cotizaciones",
+        element: <CotizacionesClientePage />,
+      },
+      {
+        path: "/cotizaciones/:id",
+        element: <CotizacionClienteDetailPage />,
+      },
     ],
+  },
+  {
+    path: "/perfil",
+    element: <PerfilUsuarioPage />,
   },
   {
     path: "/login",
@@ -92,10 +104,16 @@ export const router = createBrowserRouter([
         index: true,
         element: <AdminIndexRedirect />,
       },
+
       {
         path: "dashboard",
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
       },
+
       {
         path: "inventario",
         element: <InventarioPage />,
@@ -112,6 +130,7 @@ export const router = createBrowserRouter([
         path: "inventario/:id/agregarVariante",
         element: <ProductoNuevaVariantePage />,
       },
+
       {
         path: "ventas",
         element: <VentasPage />,
@@ -120,6 +139,7 @@ export const router = createBrowserRouter([
         path: "cotizaciones",
         element: <CotizacionesPage />,
       },
+
       {
         path: "comerciantes",
         element: (
@@ -152,6 +172,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "configuracion",
         element: <ConfiguraciónPage />,

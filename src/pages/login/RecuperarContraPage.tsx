@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Lock } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import logoMeowtfit from "../assets/logo.png"
+import logoMeowtfit from "../../assets/logo.png"
 
 export default function RecuperarContraPage() {
     const [searchParams] = useSearchParams()

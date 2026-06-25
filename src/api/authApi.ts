@@ -12,41 +12,90 @@ export type LoginResponse = {
   rol: RolUsuario;
 };
 
-export async function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
+export type RegistrarUsuarioRequest = {
+  nombres: string;
+  correo: string;
+  contrasena: string;
+  telefono?: string | null;
+  rol: RolUsuario;
+
+  dni?: string | null;
+  fechaNacimiento?: string | null;
+  direccionEnvio?: string | null;
+
+  ruc?: string | null;
+  razonSocial?: string | null;
+  telefono2?: string | null;
+};
+
+export type UsuarioResponse = {
+  idUsuario: number;
+  nombres: string;
+  telefono: string | null;
+  correo: string;
+  fechaCreacion: string;
+  fechaActualizacion?: string | null;
+  estadoCuenta: "ACTIVO" | "INACTIVO";
+  rol: RolUsuario;
+
+  dni?: string | null;
+  fechaNacimiento?: string | null;
+  direccionEnvio?: string | null;
+  ruc?: string | null;
+  razonSocial?: string | null;
+  telefono2?: string | null;
+};
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...options?.headers,
     },
-    body: JSON.stringify(data),
+    ...options,
   });
 
   if (!response.ok) {
-    let message = "Correo o contraseña incorrectos.";
+    let message = "No se pudo completar la operación.";
 
     try {
-      const errorData = await response.json();
-      message = errorData.mensaje ?? errorData.error ?? message;
+      const data = await response.json();
+      message = data.mensaje ?? data.message ?? data.error ?? message;
     } catch {
       message = response.statusText || message;
     }
 
-    throw new Error(message);
+    throw new Error(`${response.status} ${message}`);
   }
 
-  return response.json() as Promise<LoginResponse>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
+  return request<LoginResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function registrarUsuario(
+  data: RegistrarUsuarioRequest
+): Promise<UsuarioResponse> {
+  return request<UsuarioResponse>("/api/usuarios", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function logoutUsuario(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+  await request<void>("/api/auth/logout", {
     method: "POST",
-    credentials: "include",
   });
-
-  if (!response.ok && response.status !== 204) {
-    throw new Error("No se pudo cerrar sesión en el servidor.");
-  }
 }
 
 export function limpiarSesionLocal() {

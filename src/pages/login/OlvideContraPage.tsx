@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, MessageCircle, Info } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import logoMeowtfit from "../assets/logo.png"
+import logoMeowtfit from "../../assets/logo.png"
 
 export default function OlvideContraPage() {
     const [identifier, setIdentifier] = useState("")

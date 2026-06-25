@@ -27,6 +27,7 @@ function obtenerSesionUsuario(): SesionUsuario {
 function limpiarSesionLocal() {
   localStorage.removeItem("meowtfit_correo");
   localStorage.removeItem("meowtfit_rol");
+
   sessionStorage.removeItem("meowtfit_correo");
   sessionStorage.removeItem("meowtfit_rol");
 }
@@ -76,10 +77,18 @@ export default function UserSessionMenu() {
                 Rol: {sesion.rol}
               </p>
 
+              <Link
+                to="/perfil"
+                onClick={() => setAbierto(false)}
+                className="mt-4 flex h-10 w-full items-center justify-center rounded-lg bg-[#087f99] text-sm font-bold text-white transition hover:bg-[#076f86]"
+              >
+                Ver perfil
+              </Link>
+
               <button
                 type="button"
                 onClick={handleCerrarSesion}
-                className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
+                className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-red-50 text-sm font-bold text-red-600 transition hover:bg-red-100"
               >
                 <LogOut size={16} />
                 Cerrar sesión
@@ -112,7 +121,6 @@ export default function UserSessionMenu() {
                 <UserPlus size={16} className="text-[#087f99]" />
                 Registrarse
               </Link>
-              
             </div>
           )}
         </div>

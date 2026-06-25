@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  ChevronLeft,
-  Minus,
-  Plus,
-  Truck,
-} from "lucide-react";
+import { ChevronLeft, FileText, Minus, Plus, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +8,7 @@ import {
   type Producto,
   type VarianteProducto,
 } from "@/api/catalogoApi";
+
 import {
   actualizarLineaCarrito,
   crearLineaCarrito,
@@ -24,6 +20,32 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";
+
+type VarianteConColor = VarianteProducto & {
+  idColor?: number | null;
+  nombreColor?: string | null;
+  hexadecimal?: string | null;
+  codigoHex?: string | null;
+  hex?: string | null;
+  imagenUrl?: string | null;
+  color?:
+  | string
+  | {
+    idColor?: number | null;
+    nombre?: string | null;
+    nombreColor?: string | null;
+    hexadecimal?: string | null;
+    codigoHex?: string | null;
+    hex?: string | null;
+  }
+  | null;
+};
+
+type ColorDisponible = {
+  clave: string;
+  nombre: string;
+  hex: string;
+};
 
 function normalizarImagen(imagenUrl?: string | null) {
   if (!imagenUrl) return imagenFallback;
@@ -39,32 +61,8 @@ function formatearPrecio(precio: number) {
   }).format(precio);
 }
 
-function obtenerNombreColor(color: VarianteProducto["color"]) {
-  if (!color) return "Sin color";
-
-  if (typeof color === "string") {
-    return color;
-  }
-
-  return color.nombre ?? color.nombreColor ?? "Sin color";
-}
-
-function obtenerHexColor(color: VarianteProducto["color"]) {
-  if (!color) return "#d1d5db";
-
-  if (typeof color === "object") {
-    return (
-      color.codigoHex ??
-      color.hex ??
-      obtenerColorVisualPorNombre(obtenerNombreColor(color))
-    );
-  }
-
-  return obtenerColorVisualPorNombre(color);
-}
-
 function obtenerColorVisualPorNombre(color: string) {
-  const colorNormalizado = color.toLowerCase();
+  const colorNormalizado = color.trim().toLowerCase();
 
   const colores: Record<string, string> = {
     blanco: "#f8fafc",
@@ -87,6 +85,79 @@ function obtenerColorVisualPorNombre(color: string) {
   return colores[colorNormalizado] ?? "#d1d5db";
 }
 
+function obtenerIdColor(variante?: VarianteProducto | null) {
+  if (!variante) return null;
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.idColor === "number") {
+    return v.idColor;
+  }
+
+  if (typeof v.color === "object" && v.color?.idColor) {
+    return v.color.idColor;
+  }
+
+  return null;
+}
+
+function obtenerNombreColor(variante?: VarianteProducto | null) {
+  if (!variante) return "Sin color";
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.color === "string") {
+    return v.color;
+  }
+
+  if (typeof v.color === "object" && v.color) {
+    return (
+      v.color.nombre ??
+      v.color.nombreColor ??
+      v.nombreColor ??
+      "Sin color"
+    );
+  }
+
+  return v.nombreColor ?? "Sin color";
+}
+
+function obtenerHexColor(variante?: VarianteProducto | null) {
+  if (!variante) return "#d1d5db";
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.color === "object" && v.color) {
+    const hex =
+      v.color.hexadecimal ??
+      v.color.codigoHex ??
+      v.color.hex ??
+      v.hexadecimal ??
+      v.codigoHex ??
+      v.hex;
+
+    if (hex) return hex;
+  }
+
+  const hex = v.hexadecimal ?? v.codigoHex ?? v.hex;
+
+  if (hex) return hex;
+
+  return obtenerColorVisualPorNombre(obtenerNombreColor(variante));
+}
+
+function obtenerClaveColor(variante?: VarianteProducto | null) {
+  if (!variante) return "sin-color";
+
+  const idColor = obtenerIdColor(variante);
+
+  if (idColor) {
+    return `color-${idColor}`;
+  }
+
+  return obtenerNombreColor(variante).trim().toLowerCase();
+}
+
 function stockReal(variante?: VarianteProducto | null) {
   if (!variante) return 0;
 
@@ -101,21 +172,16 @@ function varianteTieneStock(variante?: VarianteProducto | null) {
 }
 
 function obtenerColores(variantes: VarianteProducto[]) {
-  const mapa = new Map<
-    string,
-    {
-      nombre: string;
-      hex: string;
-    }
-  >();
+  const mapa = new Map<string, ColorDisponible>();
 
   variantes.forEach((variante) => {
-    const nombre = obtenerNombreColor(variante.color);
+    const clave = obtenerClaveColor(variante);
 
-    if (!mapa.has(nombre)) {
-      mapa.set(nombre, {
-        nombre,
-        hex: obtenerHexColor(variante.color),
+    if (!mapa.has(clave)) {
+      mapa.set(clave, {
+        clave,
+        nombre: obtenerNombreColor(variante),
+        hex: obtenerHexColor(variante),
       });
     }
   });
@@ -125,22 +191,30 @@ function obtenerColores(variantes: VarianteProducto[]) {
 
 function obtenerVariantesPorColor(
   variantes: VarianteProducto[],
-  colorSeleccionado: string
+  claveColorSeleccionado: string
 ) {
   return variantes.filter(
-    (variante) => obtenerNombreColor(variante.color) === colorSeleccionado
+    (variante) => obtenerClaveColor(variante) === claveColorSeleccionado
   );
 }
 
 function colorTieneStock(
   variantes: VarianteProducto[],
-  colorSeleccionado: string
+  claveColorSeleccionado: string
 ) {
   return variantes.some(
     (variante) =>
-      obtenerNombreColor(variante.color) === colorSeleccionado &&
+      obtenerClaveColor(variante) === claveColorSeleccionado &&
       varianteTieneStock(variante)
   );
+}
+
+function obtenerImagenVariante(variante?: VarianteProducto | null) {
+  if (!variante) return null;
+
+  const v = variante as VarianteConColor;
+
+  return v.imagenUrl ?? null;
 }
 
 function obtenerSesionUsuario() {
@@ -162,6 +236,7 @@ function obtenerSesionUsuario() {
 function limpiarSesionLocal() {
   localStorage.removeItem("meowtfit_correo");
   localStorage.removeItem("meowtfit_rol");
+
   sessionStorage.removeItem("meowtfit_correo");
   sessionStorage.removeItem("meowtfit_rol");
 }
@@ -177,6 +252,7 @@ export default function CatalogoDetailPage() {
   const [colorSeleccionado, setColorSeleccionado] = useState("");
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [cantidad, setCantidad] = useState(1);
+
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -204,9 +280,7 @@ export default function CatalogoDetailPage() {
         );
 
         if (primeraVarianteConStock) {
-          setColorSeleccionado(
-            obtenerNombreColor(primeraVarianteConStock.color)
-          );
+          setColorSeleccionado(obtenerClaveColor(primeraVarianteConStock));
           setTallaSeleccionada(primeraVarianteConStock.talla);
         } else {
           setColorSeleccionado("");
@@ -235,6 +309,13 @@ export default function CatalogoDetailPage() {
     return obtenerColores(producto.variantes);
   }, [producto]);
 
+  const colorSeleccionadoInfo = useMemo(() => {
+    return (
+      coloresDisponibles.find((color) => color.clave === colorSeleccionado) ??
+      null
+    );
+  }, [coloresDisponibles, colorSeleccionado]);
+
   const variantesDelColor = useMemo(() => {
     if (!producto || !colorSeleccionado) return [];
 
@@ -247,7 +328,7 @@ export default function CatalogoDetailPage() {
     return (
       producto.variantes.find(
         (variante) =>
-          obtenerNombreColor(variante.color) === colorSeleccionado &&
+          obtenerClaveColor(variante) === colorSeleccionado &&
           variante.talla === tallaSeleccionada
       ) ?? null
     );
@@ -260,8 +341,12 @@ export default function CatalogoDetailPage() {
     : true;
 
   const imagenPrincipal = normalizarImagen(
-    varianteSeleccionada?.imagenUrl ?? producto?.imagenUrl
+    obtenerImagenVariante(varianteSeleccionada) ?? producto?.imagenUrl
   );
+
+  const subtotalReferencial = producto
+    ? Number(producto.precioBase) * cantidad
+    : 0;
 
   function redirigirALogin() {
     navigate("/login", {
@@ -272,22 +357,22 @@ export default function CatalogoDetailPage() {
     });
   }
 
-  function handleSeleccionarColor(color: string) {
+  function handleSeleccionarColor(claveColor: string) {
     if (!producto) return;
 
-    if (!colorTieneStock(producto.variantes, color)) {
+    if (!colorTieneStock(producto.variantes, claveColor)) {
       return;
     }
 
     const primeraVarianteDisponible = producto.variantes.find(
       (variante) =>
-        obtenerNombreColor(variante.color) === color &&
+        obtenerClaveColor(variante) === claveColor &&
         varianteTieneStock(variante)
     );
 
     if (!primeraVarianteDisponible) return;
 
-    setColorSeleccionado(color);
+    setColorSeleccionado(claveColor);
     setTallaSeleccionada(primeraVarianteDisponible.talla);
     setCantidad(1);
     setMensajeCarrito(null);
@@ -309,6 +394,45 @@ export default function CatalogoDetailPage() {
 
   function disminuirCantidad() {
     setCantidad((actual) => Math.max(actual - 1, 1));
+  }
+
+  function irACrearCotizacion() {
+    const sesion = obtenerSesionUsuario();
+
+    if (!sesion.estaLogeado) {
+      redirigirALogin();
+      return;
+    }
+
+    if (sesion.rol !== "CLIENTE") {
+      setMensajeCarrito("Solo los clientes pueden solicitar cotizaciones.");
+      return;
+    }
+
+    if (!producto || !varianteSeleccionada) {
+      setMensajeCarrito("Selecciona una talla y color disponibles.");
+      return;
+    }
+
+    if (cantidad <= 0) {
+      setMensajeCarrito("La cantidad debe ser mayor a cero.");
+      return;
+    }
+
+    navigate("/cotizaciones/crear", {
+      state: {
+        idProducto: producto.idProducto,
+        idVariante: varianteSeleccionada.idVariante,
+        idColor: obtenerIdColor(varianteSeleccionada),
+        productoNombre: producto.nombre,
+        categoria: producto.categoria?.nombre ?? null,
+        talla: varianteSeleccionada.talla,
+        color: obtenerNombreColor(varianteSeleccionada),
+        cantidad,
+        precioUnitario: Number(producto.precioBase),
+        subtotalReferencial,
+      },
+    });
   }
 
   async function handleAgregarAlCarrito() {
@@ -416,7 +540,7 @@ export default function CatalogoDetailPage() {
 
   if (cargando) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7fafc]">
+      <main className="grid min-h-[calc(100vh-66px)] place-items-center bg-[#f7fafc]">
         <p className="text-sm font-medium text-slate-500">
           Cargando producto...
         </p>
@@ -426,11 +550,12 @@ export default function CatalogoDetailPage() {
 
   if (error || !producto) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7fafc] px-6">
+      <main className="grid min-h-[calc(100vh-66px)] place-items-center bg-[#f7fafc] px-6">
         <div className="text-center">
           <p className="text-lg font-bold text-slate-800">
             No se pudo mostrar el producto
           </p>
+
           <p className="mt-2 text-sm text-slate-500">
             {error ?? "Producto no encontrado."}
           </p>
@@ -444,9 +569,8 @@ export default function CatalogoDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7fafc] text-slate-800">
-      
-      <main className="mx-auto max-w-7xl px-6 py-8">
+    <main className="min-h-[calc(100vh-66px)] bg-[#f7fafc] px-6 py-8 text-slate-800">
+      <div className="mx-auto max-w-7xl">
         <Link
           to="/"
           className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#087f99] hover:underline"
@@ -466,7 +590,7 @@ export default function CatalogoDetailPage() {
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
-              {[producto.imagenUrl, varianteSeleccionada?.imagenUrl]
+              {[producto.imagenUrl, obtenerImagenVariante(varianteSeleccionada)]
                 .filter(Boolean)
                 .map((imagen, index) => (
                   <div
@@ -484,21 +608,18 @@ export default function CatalogoDetailPage() {
           </div>
 
           <aside className="flex flex-col justify-start px-1 py-2">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd2d73]">
-                  {producto.categoria?.nombre ?? "Producto"}
-                </p>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd2d73]">
+                {producto.categoria?.nombre ?? "Producto"}
+              </p>
 
-                <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
-                  {producto.nombre}
-                </h1>
+              <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
+                {producto.nombre}
+              </h1>
 
-                <p className="mt-2 text-2xl font-extrabold text-[#bd2d73]">
-                  {formatearPrecio(Number(producto.precioBase))}
-                </p>
-              </div>
-
+              <p className="mt-2 text-2xl font-extrabold text-[#bd2d73]">
+                {formatearPrecio(Number(producto.precioBase))}
+              </p>
             </div>
 
             <p className="mt-6 max-w-xl text-sm leading-6 text-slate-500">
@@ -516,7 +637,7 @@ export default function CatalogoDetailPage() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
                 Color:{" "}
                 <span className="text-slate-800">
-                  {colorSeleccionado || "Sin stock"}
+                  {colorSeleccionadoInfo?.nombre ?? "Sin stock"}
                 </span>
               </p>
 
@@ -524,28 +645,26 @@ export default function CatalogoDetailPage() {
                 {coloresDisponibles.map((color) => {
                   const sinStock = !colorTieneStock(
                     producto.variantes,
-                    color.nombre
+                    color.clave
                   );
 
                   return (
                     <button
-                      key={color.nombre}
+                      key={color.clave}
                       type="button"
                       disabled={sinStock}
-                      onClick={() => handleSeleccionarColor(color.nombre)}
-                      title={
-                        sinStock ? `${color.nombre} sin stock` : color.nombre
-                      }
-                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${colorSeleccionado === color.nombre
-                          ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
-                          : "border-slate-200"
+                      onClick={() => handleSeleccionarColor(color.clave)}
+                      title={sinStock ? `${color.nombre} sin stock` : color.nombre}
+                      className={`grid h-10 w-10 place-items-center rounded-full border transition ${colorSeleccionado === color.clave
+                        ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
+                        : "border-slate-200"
                         } ${sinStock
                           ? "cursor-not-allowed opacity-35"
                           : "hover:border-[#bd2d73]"
                         }`}
                     >
                       <span
-                        className="h-6 w-6 rounded-full border border-slate-200"
+                        className="h-7 w-7 rounded-full border border-slate-200"
                         style={{ backgroundColor: color.hex }}
                       />
                     </button>
@@ -579,9 +698,9 @@ export default function CatalogoDetailPage() {
                       type="button"
                       disabled={sinStock}
                       onClick={() => handleSeleccionarTalla(variante)}
-                      className={`h-11 rounded-lg border text-sm font-semibold transition ${tallaSeleccionada === variante.talla
-                          ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
+                      className={`h-12 rounded-xl border text-sm font-semibold transition ${tallaSeleccionada === variante.talla
+                        ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
                         } ${sinStock
                           ? "cursor-not-allowed opacity-40 line-through hover:border-slate-200"
                           : ""
@@ -603,19 +722,19 @@ export default function CatalogoDetailPage() {
               {varianteSeleccionada && (
                 <p className="mt-1 text-xs text-slate-500">
                   Variante seleccionada:{" "}
-                  {obtenerNombreColor(varianteSeleccionada.color)} /{" "}
+                  {obtenerNombreColor(varianteSeleccionada)} /{" "}
                   {varianteSeleccionada.talla}
                 </p>
               )}
             </div>
 
             <div className="mt-6 flex items-center gap-4">
-              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-white">
+              <div className="flex h-12 items-center rounded-xl border border-slate-200 bg-white">
                 <button
                   type="button"
                   onClick={disminuirCantidad}
                   disabled={productoSinStock}
-                  className="grid h-11 w-11 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
+                  className="grid h-12 w-12 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
                 >
                   <Minus size={15} />
                 </button>
@@ -628,7 +747,7 @@ export default function CatalogoDetailPage() {
                   type="button"
                   onClick={aumentarCantidad}
                   disabled={productoSinStock || cantidad >= stockDisponible}
-                  className="grid h-11 w-11 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
+                  className="grid h-12 w-12 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
                 >
                   <Plus size={15} />
                 </button>
@@ -643,7 +762,7 @@ export default function CatalogoDetailPage() {
                   !varianteSeleccionada ||
                   stockDisponible <= 0
                 }
-                className="h-11 flex-1 bg-[#087f99] text-xs font-bold uppercase tracking-[0.18em] hover:bg-[#076f86]"
+                className="h-12 flex-1 rounded-xl bg-[#087f99] text-xs font-bold uppercase tracking-[0.18em] hover:bg-[#076f86]"
               >
                 {agregandoCarrito
                   ? "Agregando..."
@@ -653,11 +772,36 @@ export default function CatalogoDetailPage() {
               </Button>
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                navigate("/cotizaciones/crear", {
+                  state: {
+                    idProducto: producto.idProducto,
+                    idVariante: varianteSeleccionada?.idVariante ?? null,
+                    productoNombre: producto.nombre,
+                    categoria: producto.categoria?.nombre ?? null,
+                    talla: varianteSeleccionada?.talla ?? null,
+                    color: varianteSeleccionada
+                      ? obtenerNombreColor(varianteSeleccionada)
+                      : null,
+                    cantidad,
+                    precioUnitario: Number(producto.precioBase),
+                  },
+                })
+              }
+              disabled={!producto}
+              className="mt-4 h-12 w-full rounded-xl border-[#bd2d73] text-xs font-bold uppercase tracking-[0.18em] text-[#bd2d73] hover:bg-pink-50"
+            >
+              Solicitar cotización
+            </Button>
+
             {mensajeCarrito && (
               <p
                 className={`mt-3 text-sm font-semibold ${mensajeCarrito.includes("correctamente")
-                    ? "text-emerald-600"
-                    : "text-red-600"
+                  ? "text-emerald-600"
+                  : "text-red-600"
                   }`}
               >
                 {mensajeCarrito}
@@ -679,7 +823,7 @@ export default function CatalogoDetailPage() {
             </div>
           </aside>
         </section>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
