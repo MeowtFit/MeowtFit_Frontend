@@ -140,6 +140,22 @@ export default function PersonalizarPrenda() {
   const navigate = useNavigate();
   const idProducto = Number(id);
 
+  // ── Guard de acceso: solo CLIENTE logueado ─────────────────────────────────
+  useEffect(() => {
+    const sesion = obtenerSesionUsuario();
+    if (!sesion.estaLogeado) {
+      navigate("/login", {
+        replace: true,
+        state: { from: `/personalizar/${idProducto}` },
+      });
+      return;
+    }
+    if (sesion.rol !== "CLIENTE") {
+      navigate("/", { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Producto ───────────────────────────────────────────────────────────────
   const [producto, setProducto] = useState<Producto | null>(null);
   const [cargando, setCargando] = useState(true);
