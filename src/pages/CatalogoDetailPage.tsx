@@ -5,6 +5,8 @@ import {
   Minus,
   Plus,
   Truck,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -183,6 +185,21 @@ export default function CatalogoDetailPage() {
 
   const [agregandoCarrito, setAgregandoCarrito] = useState(false);
   const [mensajeCarrito, setMensajeCarrito] = useState<string | null>(null);
+
+  const [zoom, setZoom] = useState(false);
+  const [panPosition, setPanPosition] = useState({ x: 50, y: 50 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!zoom) return;
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setPanPosition({ x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setPanPosition({ x: 50, y: 50 });
+  };
 
   useEffect(() => {
     async function cargarProducto() {
@@ -476,19 +493,34 @@ export default function CatalogoDetailPage() {
              *     el color solo sobre píxeles claros (sombras permanecen)
              */}
             <div
-              className="relative overflow-hidden rounded-xl"
+              className="relative overflow-hidden rounded-xl group flex items-center justify-center"
               style={{ backgroundColor: "#ffffff", height: "620px" }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
             >
               <img
                 src={imagenPrincipal}
                 alt={producto.nombre}
+                onClick={(e) => {
+                  if (!zoom) {
+                    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+                    const x = ((e.clientX - left) / width) * 100;
+                    const y = ((e.clientY - top) / height) * 100;
+                    setPanPosition({ x, y });
+                  }
+                  setZoom(!zoom);
+                }}
                 style={{
                   position: "absolute",
                   inset: 0,
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  objectFit: "contain",
                   zIndex: 1,
+                  transform: zoom ? "scale(1.8)" : "scale(1)",
+                  transition: zoom ? "transform 0.05s ease-out" : "transform 0.3s ease",
+                  transformOrigin: zoom ? `${panPosition.x}% ${panPosition.y}%` : "center",
+                  cursor: zoom ? "zoom-out" : "zoom-in",
                 }}
               />
 
@@ -501,18 +533,30 @@ export default function CatalogoDetailPage() {
                     backgroundColor: hexColorActual,
                     maskImage: `url(${imagenPrincipal})`,
                     WebkitMaskImage: `url(${imagenPrincipal})`,
-                    maskSize: "cover",
+                    maskSize: "contain",
                     maskRepeat: "no-repeat",
                     maskPosition: "center",
-                    WebkitMaskSize: "cover",
+                    WebkitMaskSize: "contain",
                     WebkitMaskRepeat: "no-repeat",
                     WebkitMaskPosition: "center",
                     mixBlendMode: "multiply",
                     pointerEvents: "none",
-                    transition: "background-color 0.3s ease",
+                    transition: zoom ? "transform 0.05s ease-out, background-color 0.3s ease" : "background-color 0.3s ease, transform 0.3s ease",
+                    transform: zoom ? "scale(1.8)" : "scale(1)",
+                    transformOrigin: zoom ? `${panPosition.x}% ${panPosition.y}%` : "center",
                   }}
                 />
               )}
+
+              {/* Botón de lupa (zoom) */}
+              <button
+                type="button"
+                onClick={() => setZoom(!zoom)}
+                className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:bg-white focus:outline-none"
+                title={zoom ? "Reducir" : "Ampliar"}
+              >
+                {zoom ? <ZoomOut size={20} /> : <ZoomIn size={20} />}
+              </button>
 
               {/* Chip flotante con el color activo */}
               {colorSeleccionado && (
