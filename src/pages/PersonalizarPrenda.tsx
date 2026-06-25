@@ -141,9 +141,12 @@ export default function PersonalizarPrenda() {
   const navigate = useNavigate();
   const idProducto = Number(id);
 
-  // ── Guard de acceso: solo CLIENTE logueado ─────────────────────────────────
+  // ── Guard de acceso: CLIENTE logueado o modo Vista Cliente ─────────────────
   useEffect(() => {
     const sesion = obtenerSesionUsuario();
+    const enVistaCliente =
+      sessionStorage.getItem("meowtfit_vista_cliente") === "true";
+
     if (!sesion.estaLogeado) {
       navigate("/login", {
         replace: true,
@@ -151,7 +154,8 @@ export default function PersonalizarPrenda() {
       });
       return;
     }
-    if (sesion.rol !== "CLIENTE") {
+    // Administrador/Comerciante pueden acceder en modo vista cliente
+    if (sesion.rol !== "CLIENTE" && !enVistaCliente) {
       navigate("/", { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
