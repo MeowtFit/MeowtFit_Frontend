@@ -319,6 +319,10 @@ export default function PedidosGestionPage() {
                                                         <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 border border-red-200">
                                                             Comprobante rechazado
                                                         </span>
+                                                    ) : pedido.estado === "EN_PROCESO" ? (
+                                                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                                            Comprobante validado - Pendiente de Abastecimiento
+                                                        </span>
                                                     ) : tieneComprobante ? (
                                                         <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
                                                             Comprobante validado

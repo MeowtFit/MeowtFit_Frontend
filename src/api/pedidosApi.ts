@@ -155,13 +155,14 @@ export async function obtenerPedidoPorId(idPedido: number) {
   return await adaptarPedido(pedido);
 }
 
-export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido) {
-  return request<Pedido>(
-    `/api/pedidos/${idPedido}/estado?nuevoEstado=${nuevoEstado}`,
-    {
-      method: "PATCH",
-    }
-  );
+export function cambiarEstadoPedido(idPedido: number, nuevoEstado: EstadoPedido, motivoRechazo?: string) {
+  let url = `/api/pedidos/${idPedido}/estado?nuevoEstado=${nuevoEstado}`;
+  if (motivoRechazo) {
+    url += `&motivoRechazo=${encodeURIComponent(motivoRechazo)}`;
+  }
+  return request<Pedido>(url, {
+    method: "PATCH",
+  });
 }
 
 // Tu PedidosListPage usa verificarPago(idPedido), así que dejo este wrapper.
@@ -212,6 +213,13 @@ export async function subirComprobante(idPedido: number, archivo: File): Promise
 
   return response.json() as Promise<ComprobantePagoDTO>;
 }
+
+export async function eliminarComprobante(idComprobante: number): Promise<void> {
+  await request<void>(`/api/comprobantes-pago/${idComprobante}`, {
+    method: "DELETE",
+  });
+}
+
 
 export async function descargarComprobanteArchivo(idComprobante: number): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/api/comprobantes-pago/${idComprobante}/archivo`, {

@@ -199,6 +199,10 @@ export function obtenerVariantesPorProducto(idProducto: number) {
   return request<VarianteProducto[]>(`/api/variantes/producto/${idProducto}`);
 }
 
+export function obtenerVariantePorId(idVariante: number) {
+  return request<any>(`/api/variantes/${idVariante}`);
+}
+
 export function crearVarianteProducto(data: VarianteProductoRequestDTO) {
   return request<VarianteProducto>("/api/variantes", {
     method: "POST",
