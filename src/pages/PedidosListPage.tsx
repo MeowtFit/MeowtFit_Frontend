@@ -127,6 +127,9 @@ export default function PedidosListPage() {
         })
       );
 
+      // Ordenar pedidos en orden descendente (último pedido arriba)
+      dataConComprobantes.sort((a, b) => b.idPedido - a.idPedido);
+
       setPedidos(dataConComprobantes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar pedidos.");
@@ -304,12 +307,20 @@ export default function PedidosListPage() {
                 <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   {pedidosVisibles.map((pedido, index) => {
                     let etiqueta = "PENDIENTE";
-                    if (pedido.estado === "PAGO_RECHAZADO") {
-                      etiqueta = "RECHAZADA";
+                    let colorClass = "text-orange-500";
+
+                    if (pedido.estado === "CONFIRMADO") {
+                      etiqueta = "CONFIRMADO";
+                      colorClass = "text-green-600";
+                    } else if (pedido.estado === "PAGO_RECHAZADO") {
+                      etiqueta = "PAGO RECHAZADO";
+                      colorClass = "text-red-600";
                     } else if (pedido.estado === "CANCELADO") {
                       etiqueta = "CANCELADA";
+                      colorClass = "text-slate-500";
                     } else if (pedido.tieneComprobante) {
                       etiqueta = "COMPROBANTE SUBIDO";
+                      colorClass = "text-yellow-600 font-extrabold";
                     }
 
                     const imagenesPrendas = pedido.lineas
@@ -369,7 +380,7 @@ export default function PedidosListPage() {
                                 Detalles
                               </button>
 
-                              <span className="text-sm font-bold tracking-wide text-[#bd2d73]">
+                              <span className={`text-sm font-bold tracking-wide ${colorClass}`}>
                                 {etiqueta}
                               </span>
                             </div>
@@ -503,82 +514,81 @@ export default function PedidosListPage() {
               </span>
             </div>
 
+            {/* Cabecera común */}
+            <h2 className="text-xl font-bold text-slate-800">
+              {modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO")
+                ? "Detalle del pedido"
+                : "Detalles y subir comprobante"}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Factura {codigoFactura(modalPedido)} —{" "}
+              {formatearFecha(modalPedido.fechaHoraRegistro)}
+            </p>
+
+            {/* Mensaje de Estado / Indicación de verificación */}
             {modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO") ? (
-              <>
-                <h2 className="text-xl font-bold text-slate-800">
-                  Detalle del pedido
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Factura {codigoFactura(modalPedido)} —{" "}
-                  {formatearFecha(modalPedido.fechaHoraRegistro)}
+              modalPedido.tieneComprobante &&
+              !esCancelado(modalPedido.estado) && (
+                <p className="mt-1 text-xs font-medium text-green-600">
+                  {modalPedido.estado === "CONFIRMADO"
+                    ? "✓ Comprobante verificado"
+                    : "✓ Comprobante enviado — en espera de verificación"}
                 </p>
+              )
+            ) : (
+              <p className="mt-1 text-sm font-bold text-[#bd2d73]">
+                Estado: {modalPedido.estado === "PAGO_RECHAZADO" ? "PAGO RECHAZADO" : "PENDIENTE"}
+              </p>
+            )}
 
-                {modalPedido.tieneComprobante &&
-                  !esCancelado(modalPedido.estado) && (
-                    <p className="mt-1 text-xs font-medium text-green-600">
-                      ✓ Comprobante enviado — en espera de verificación
-                    </p>
-                  )}
+            {/* Lineas de pedido asociadas (Siempre visibles) */}
+            <div className="mt-6 max-h-48 space-y-4 overflow-y-auto pr-1">
+              {modalPedido.lineas.map((linea) => (
+                <div
+                  key={linea.idLineaPedido}
+                  className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={normalizarImagen(linea.variante?.imagenUrl)}
+                      alt={linea.variante?.nombreProducto ?? "Prenda"}
+                      className="h-14 w-11 rounded-lg object-cover"
+                    />
 
-                <div className="mt-6 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {modalPedido.lineas.map((linea) => (
-                    <div
-                      key={linea.idLineaPedido}
-                      className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={normalizarImagen(linea.variante?.imagenUrl)}
-                          alt={linea.variante?.nombreProducto ?? "Prenda"}
-                          className="h-14 w-11 rounded-lg object-cover"
-                        />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {linea.variante?.nombreProducto ?? "Producto"}
+                        {linea.variante?.talla
+                          ? ` — Talla ${linea.variante.talla}`
+                          : ""}
+                      </p>
 
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">
-                            {linea.variante?.nombreProducto ?? "Producto"}
-                            {linea.variante?.talla
-                              ? ` — Talla ${linea.variante.talla}`
-                              : ""}
-                          </p>
-
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            {linea.cantidad} ×{" "}
-                            {formatearPrecio(Number(linea.precioUnitario))}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
-                        {formatearPrecio(Number(linea.subtotal))}
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {linea.cantidad} ×{" "}
+                        {formatearPrecio(Number(linea.precioUnitario))}
                       </p>
                     </div>
-                  ))}
+                  </div>
+
+                  <p className="shrink-0 text-sm font-bold text-[#bd2d73]">
+                    {formatearPrecio(Number(linea.subtotal))}
+                  </p>
                 </div>
+              ))}
+            </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
-                  <span className="font-bold text-slate-800">Total</span>
+            <div className="mt-5 flex items-center justify-between border-t border-slate-200 py-4">
+              <span className="font-bold text-slate-800">Total</span>
 
-                  <span className="text-lg font-extrabold text-[#bd2d73]">
-                    {formatearPrecio(Number(modalPedido.montoTotal))}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold text-slate-800">
-                  Detalles y subir comprobante
-                </h2>
+              <span className="text-lg font-extrabold text-[#bd2d73]">
+                {formatearPrecio(Number(modalPedido.montoTotal))}
+              </span>
+            </div>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Factura {codigoFactura(modalPedido)} —{" "}
-                  {formatearFecha(modalPedido.fechaHoraRegistro)}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#bd2d73]">
-                  Estado: {modalPedido.estado === "PAGO_RECHAZADO" ? "RECHAZADA" : "PENDIENTE"}
-                </p>
-
+            {/* Sección condicional para subir comprobante si aplica */}
+            {!(modalPedido.estado === "CANCELADO" || (modalPedido.tieneComprobante && modalPedido.estado !== "PAGO_RECHAZADO")) && (
+              <div className="mt-2 border-t border-slate-100 pt-4">
                 {errorModal && (
                   <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
                     {errorModal}
@@ -628,7 +638,7 @@ export default function PedidosListPage() {
                       fileInputRef.current?.click();
                     }
                   }}
-                  className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f99] py-4 text-base font-bold text-white transition hover:bg-[#076f86] disabled:opacity-60"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#087f99] py-4 text-base font-bold text-white transition hover:bg-[#076f86] disabled:opacity-60"
                 >
                   {subiendoComprobante ? (
                     "Subiendo..."
@@ -655,7 +665,7 @@ export default function PedidosListPage() {
                     Cambiar archivo
                   </button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
