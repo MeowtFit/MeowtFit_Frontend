@@ -101,7 +101,33 @@ export default function PedidosListPage() {
     try {
       setCargando(true);
       setError(null);
-      setPedidos(await listarMisPedidos());
+
+      const data = await listarMisPedidos();
+
+      const dataConComprobantes = await Promise.all(
+        data.map(async (p) => {
+          try {
+            const cp = await obtenerComprobantePorPedido(p.idPedido);
+            if (cp) {
+              return {
+                ...p,
+                tieneComprobante: true,
+                archivoComprobante: cp.archivo,
+                idFactura: cp.idComprobante,
+              };
+            }
+          } catch (e) {
+            console.error("Error al obtener comprobante:", e);
+          }
+          return {
+            ...p,
+            tieneComprobante: false,
+            archivoComprobante: null,
+          };
+        })
+      );
+
+      setPedidos(dataConComprobantes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar pedidos.");
     } finally {
@@ -283,7 +309,7 @@ export default function PedidosListPage() {
                     } else if (pedido.estado === "CANCELADO") {
                       etiqueta = "CANCELADA";
                     } else if (pedido.tieneComprobante) {
-                      etiqueta = "Comprobante Subido";
+                      etiqueta = "COMPROBANTE SUBIDO";
                     }
 
                     const imagenesPrendas = pedido.lineas
