@@ -82,6 +82,7 @@ function obtenerHexColor(color: VarianteProducto["color"]): string {
   if (!color) return "#d1d5db";
   if (typeof color === "object") {
     return (
+      color.hexadecimal ??
       color.codigoHex ??
       color.hex ??
       (MAPA_COLORES[obtenerNombreColor(color).toLowerCase()] ?? "#d1d5db")

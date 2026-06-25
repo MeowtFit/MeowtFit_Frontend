@@ -54,6 +54,7 @@ function obtenerHexColor(color: VarianteProducto["color"]) {
 
   if (typeof color === "object") {
     return (
+      color.hexadecimal ??
       color.codigoHex ??
       color.hex ??
       obtenerColorVisualPorNombre(obtenerNombreColor(color))
