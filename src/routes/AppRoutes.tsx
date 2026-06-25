@@ -1,15 +1,21 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-import CatalogDetailPage from "../pages/CatalogoDetailPage";
-import CatalogHomePage from "../pages/CatalogoHomePage";
+import CatalogDetailPage from "../pages/cliente/catalogo/CatalogoDetailPage";
+import CatalogHomePage from "../pages/cliente/catalogo/CatalogoHomePage";
 
-import SignUpPage from "../pages/SignUpPage";
-import LoginPage from "../pages/LoginPage";
-import OlvideContraPage from "../pages/OlvideContraPage";
-import RecuperarContraPage from "../pages/RecuperarContraPage";
+import SignUpPage from "../pages/login/SignUpPage";
+import LoginPage from "../pages/login/LoginPage";
+import OlvideContraPage from "../pages/login/OlvideContraPage";
+import RecuperarContraPage from "../pages/login/RecuperarContraPage";
+import PerfilUsuarioPage from "../pages/login/PerfilUsuarioPage";
 
-import CarritoPage from "../pages/CarritoPage";
-import PedidosListPage from "../pages/PedidosListPage";
+import CarritoPage from "../pages/cliente/carrito/CarritoPage";
+import PedidosListPage from "../pages/cliente/pedido/PedidosListPage";
+
+import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
+import CotizacionesClientePage from "../pages/cliente/cotizacion/CotizacionClientePage";
+import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
+
 import PersonalizarPrenda from "../pages/PersonalizarPrenda";
 
 import CatalogLayout from "../components/layout/CatalogLayout";
@@ -33,17 +39,7 @@ import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
 import ProtectedRoute from "./ProtectedRoute";
-
-function AdminIndexRedirect() {
-  const rol =
-    localStorage.getItem("meowtfit_rol") ||
-    sessionStorage.getItem("meowtfit_rol");
-
-  if (rol === "ADMINISTRADOR") {
-    return <Navigate to="/admin/comerciantes" replace />;
-  }
-  return <Navigate to="/admin/inventario" replace />;
-}
+import AdminIndexRedirect from "./AdminIndexRedirect";
 
 export const router = createBrowserRouter([
   {
@@ -66,10 +62,26 @@ export const router = createBrowserRouter([
         element: <PedidosListPage />,
       },
       {
+        path: "/cotizaciones",
+        element: <CotizacionesClientePage />,
+      },
+      {
+        path: "/cotizaciones/crear",
+        element: <CotizacionCreatePage />,
+      },
+      {
+        path: "/cotizaciones/:id",
+        element: <CotizacionClienteDetailPage />,
+      },
+      {
         path: "/personalizar/:id",
         element: <PersonalizarPrenda />,
       },
     ],
+  },
+  {
+    path: "/perfil",
+    element: <PerfilUsuarioPage />,
   },
   {
     path: "/login",
@@ -101,7 +113,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "dashboard",
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["ADMINISTRADOR"]}>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "inventario",
@@ -129,11 +145,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "pedidos",
-        element: <PedidosGestionPage />
+        element: <PedidosGestionPage />,
       },
       {
         path: "pedidos/validarPago/:id",
-        element: <PedidosValidarPagoPage />
+        element: <PedidosValidarPagoPage />,
       },
       {
         path: "comerciantes",

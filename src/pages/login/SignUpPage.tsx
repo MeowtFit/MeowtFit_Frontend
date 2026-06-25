@@ -1,38 +1,65 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-import { loginUsuario } from "@/api/authApi";
-import logoMeowtfit from "../assets/logo.png";
+import { registrarUsuario } from "@/api/authApi"; 
+import logoMeowtfit from "../../assets/logo.png";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [telefono, setTelefono] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const redirectTo =
-    (location.state as { from?: string } | null)?.from ?? "/";
-
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // 1. Validar Nombre Completo
+    if (!nombre.trim()) {
+      setError("Ingresa tu nombre completo.");
+      return;
+    }
+
+    // 2. Validar Correo Electrónico
     if (!correo.trim()) {
       setError("Ingresa tu correo electrónico.");
       return;
     }
 
+    // 3. Validar Contraseña
     if (!contrasena.trim()) {
-      setError("Ingresa tu contraseña.");
+      setError("Ingresa una contraseña.");
+      return;
+    }
+    if (contrasena.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    // 4. Validar Teléfono
+    const telefonoLimpio = telefono.trim();
+    if (!telefonoLimpio) {
+      setError("Ingresa un número de teléfono.");
+      return;
+    }
+    if (telefonoLimpio.length > 20) {
+      setError("El teléfono no puede superar los 20 caracteres.");
+      return;
+    }
+
+    const soloNumeros = telefonoLimpio.replace(/^\+\d+/, "").replace(/\D/g, "");
+    
+    if (soloNumeros.length < 4) {
+      setError("El teléfono debe contener al menos 4 números (sin contar el prefijo del país).");
       return;
     }
 
@@ -40,49 +67,20 @@ export default function LoginPage() {
       setCargando(true);
       setError(null);
 
-      const data = await loginUsuario({
+      await registrarUsuario({
+        nombres: nombre.trim(),
         correo: correo.trim(),
         contrasena,
+        telefono: telefonoLimpio,
+        rol: "CLIENTE",
       });
 
-      const rolNormalizado = data.rol.toUpperCase();
-
-      localStorage.removeItem("meowtfit_correo");
-      localStorage.removeItem("meowtfit_rol");
-      sessionStorage.removeItem("meowtfit_correo");
-      sessionStorage.removeItem("meowtfit_rol");
-
-      const storage = rememberMe ? localStorage : sessionStorage;
-
-      storage.setItem("meowtfit_correo", data.correo);
-      storage.setItem("meowtfit_rol", rolNormalizado);
-
-      if (rolNormalizado === "ADMINISTRADOR") {
-        navigate("/admin/comerciantes", { replace: true });
-        return;
-      }
-
-      if (rolNormalizado === "COMERCIANTE") {
-        navigate("/admin/inventario", { replace: true });
-        return;
-      }
-
-      if (rolNormalizado === "CLIENTE") {
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-
-      localStorage.removeItem("meowtfit_correo");
-      localStorage.removeItem("meowtfit_rol");
-      sessionStorage.removeItem("meowtfit_correo");
-      sessionStorage.removeItem("meowtfit_rol");
-
-      setError("Rol de usuario no reconocido.");
+      navigate("/login", { replace: true });
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message
-          : "No se pudo iniciar sesión. Inténtalo nuevamente.";
+          : "No se pudo completar el registro. Inténtalo nuevamente.";
 
       setError(message);
     } finally {
@@ -92,6 +90,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-[#f8fafc] via-[#fdfbfb] to-[#fceef5] font-sans">
+      {/* HEADER */}
       <header className="flex w-full items-center justify-center pb-4 pt-8">
         <div className="flex flex-col items-center">
           <img
@@ -102,25 +101,29 @@ export default function LoginPage() {
         </div>
       </header>
 
+      {/* MAIN */}
       <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
         <Card className="flex w-full max-w-4xl flex-col overflow-hidden rounded-md border-0 bg-white shadow-2xl md:flex-row">
+          
+          {/* COLUMNA IZQUIERDA (IMAGEN) */}
           <div
             className="relative hidden min-h-[550px] bg-cover bg-center md:flex md:w-1/2"
             style={{
               backgroundImage:
-                "url('https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?q=80&w=1200&auto=format&fit=crop')",
+                "url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1200&auto=format&fit=crop')",
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
             <div className="absolute bottom-10 left-10 right-10 text-white">
-              <h2 className="mb-2 text-xl font-medium">Inspiración local</h2>
+              <h2 className="mb-2 text-xl font-medium">Sé parte de Meowtfit</h2>
               <p className="text-sm text-gray-200">
-                Descubre la esencia de la moda boutique con sello peruano.
+                Crea tu cuenta y accede a colecciones exclusivas con lo mejor del diseño boutique peruano.
               </p>
             </div>
           </div>
 
+          {/* COLUMNA DERECHA (FORMULARIO) */}
           <CardContent className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
             <div className="mb-8">
               <button
@@ -133,16 +136,30 @@ export default function LoginPage() {
               </button>
 
               <h1 className="text-xl font-medium text-gray-800">
-                Bienvenida de nuevo
+                Crear una cuenta
               </h1>
 
               <p className="mt-1 text-sm text-gray-500">
-                Accede a tu cuenta exclusiva de Meowtfit.
+                Regístrate para gestionar tus pedidos y carritos.
               </p>
             </div>
 
-            <form className="space-y-4" onSubmit={handleLogin}>
+            <form className="space-y-4" onSubmit={handleSignUp}>
               <div className="space-y-4">
+                
+                {/* NOMBRE COMPLETO */}
+                <Input
+                  id="nombre"
+                  type="text"
+                  value={nombre}
+                  onChange={(event) => setNombre(event.target.value)}
+                  placeholder="NOMBRE COMPLETO"
+                  className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                  autoComplete="name"
+                  required
+                />
+
+                {/* CORREO ELECTRÓNICO */}
                 <Input
                   id="correo"
                   type="email"
@@ -154,6 +171,7 @@ export default function LoginPage() {
                   required
                 />
 
+                {/* CONTRASEÑA */}
                 <div className="relative">
                   <Input
                     id="contrasena"
@@ -161,8 +179,8 @@ export default function LoginPage() {
                     value={contrasena}
                     onChange={(event) => setContrasena(event.target.value)}
                     placeholder="CONTRASEÑA"
-                    className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
-                    autoComplete="current-password"
+                    className="h-12 rounded-sm border-gray-300 pr-10 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98] [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                    autoComplete="new-password"
                     required
                   />
 
@@ -175,58 +193,54 @@ export default function LoginPage() {
                   </button>
                 </div>
 
+                {/* TELÉFONO */}
+                <Input
+                  id="telefono"
+                  type="text"
+                  value={telefono}
+                  /* Reemplaza en caliente todo lo que NO sea número, +, (), espacios o guiones */
+                  onChange={(event) => {
+                    const valorFiltrado = event.target.value.replace(/[^\d+() \-]/g, "");
+                    setTelefono(valorFiltrado);
+                  }}
+                  placeholder="TELÉFONO / CELULAR (Ej: +51 987654321)"
+                  className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                  autoComplete="tel"
+                  required
+                />
+
+                {/* MENSAJE DE ERROR */}
                 {error && (
                   <p className="text-xs font-medium text-red-500">{error}</p>
                 )}
               </div>
 
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <label className="flex cursor-pointer items-center gap-2 text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-3.5 w-3.5 rounded-sm border-gray-300 text-[#0a7c98] focus:ring-[#0a7c98]"
-                  />
-                  Recordarme
-                </label>
-
-                <Link
-                  to="/olvideContra"
-                  className="font-semibold tracking-wide text-[#b43b6c] hover:underline"
-                >
-                  Olvidé mi contraseña
-                </Link>
-              </div>
-
+              {/* BOTÓN SUBMIT */}
               <Button
                 type="submit"
                 disabled={cargando}
                 className="mt-6 h-11 w-full rounded-sm bg-[#0a7c98] text-xs font-medium tracking-wide text-white hover:bg-[#086379]"
               >
                 {cargando && <Loader2 className="animate-spin" size={16} />}
-                INICIAR SESIÓN
+                REGISTRARME
               </Button>
 
-              {/* ENLACE DE REGISTRO INTEGRADO */}
-              <div className="mb-4 mt-1 text-center text-xs text-gray-500">
-                ¿Primera vez en Meowtfit?{" "}
+              {/* ENLACE AL LOGIN */}
+              <div className="mt-1 text-center text-xs text-gray-500">
+                ¿Ya tienes una cuenta?{" "}
                 <Link
-                  to="/signup"
+                  to="/login"
                   className="font-bold tracking-wide text-[#b43b6c] hover:underline"
                 >
-                  Crea tu cuenta
+                  Inicia sesión aquí
                 </Link>
-              </div>
-
-              <div className="mb-2 mt-6 text-center text-xs text-gray-500">
-                Accede a tu cuenta exclusiva de Meowtfit.
               </div>
             </form>
           </CardContent>
         </Card>
       </main>
 
+      {/* FOOTER */}
       <footer className="flex w-full flex-col items-center justify-between px-4 py-6 text-xs text-gray-500 md:flex-row md:px-12">
         <div className="mb-4 text-sm font-bold text-gray-900 md:mb-0">
           Meowtfit

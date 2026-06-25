@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft,
+  FileText,
   Minus,
   Plus,
   Truck,
@@ -15,6 +16,7 @@ import {
   type Producto,
   type VarianteProducto,
 } from "@/api/catalogoApi";
+
 import {
   actualizarLineaCarrito,
   crearLineaCarrito,
@@ -26,6 +28,31 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const imagenFallback =
   "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=900&auto=format&fit=crop";
+
+type ColorDTO = {
+  idColor?: number | null;
+  nombre?: string | null;
+  nombreColor?: string | null;
+  hexadecimal?: string | null;
+  codigoHex?: string | null;
+  hex?: string | null;
+};
+
+type VarianteConColor = Omit<VarianteProducto, "color"> & {
+  idColor?: number | null;
+  nombreColor?: string | null;
+  hexadecimal?: string | null;
+  codigoHex?: string | null;
+  hex?: string | null;
+  imagenUrl?: string | null;
+  color?: string | ColorDTO | null;
+};
+
+type ColorDisponible = {
+  clave: string;
+  nombre: string;
+  hex: string;
+};
 
 function normalizarImagen(imagenUrl?: string | null) {
   if (!imagenUrl) return imagenFallback;
@@ -41,33 +68,8 @@ function formatearPrecio(precio: number) {
   }).format(precio);
 }
 
-function obtenerNombreColor(color: VarianteProducto["color"]) {
-  if (!color) return "Sin color";
-
-  if (typeof color === "string") {
-    return color;
-  }
-
-  return color.nombre ?? color.nombreColor ?? "Sin color";
-}
-
-function obtenerHexColor(color: VarianteProducto["color"]) {
-  if (!color) return "#d1d5db";
-
-  if (typeof color === "object") {
-    return (
-      color.hexadecimal ??
-      color.codigoHex ??
-      color.hex ??
-      obtenerColorVisualPorNombre(obtenerNombreColor(color))
-    );
-  }
-
-  return obtenerColorVisualPorNombre(color);
-}
-
 function obtenerColorVisualPorNombre(color: string) {
-  const colorNormalizado = color.toLowerCase();
+  const colorNormalizado = color.trim().toLowerCase();
 
   const colores: Record<string, string> = {
     blanco: "#f8fafc",
@@ -90,6 +92,79 @@ function obtenerColorVisualPorNombre(color: string) {
   return colores[colorNormalizado] ?? "#d1d5db";
 }
 
+function obtenerIdColor(variante?: VarianteProducto | null) {
+  if (!variante) return null;
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.idColor === "number") {
+    return v.idColor;
+  }
+
+  if (typeof v.color === "object" && v.color?.idColor) {
+    return v.color.idColor;
+  }
+
+  return null;
+}
+
+function obtenerNombreColor(variante?: VarianteProducto | null) {
+  if (!variante) return "Sin color";
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.color === "string") {
+    return v.color;
+  }
+
+  if (typeof v.color === "object" && v.color) {
+    return (
+      v.color.nombre ??
+      v.color.nombreColor ??
+      v.nombreColor ??
+      "Sin color"
+    );
+  }
+
+  return v.nombreColor ?? "Sin color";
+}
+
+function obtenerHexColor(variante?: VarianteProducto | null) {
+  if (!variante) return "#d1d5db";
+
+  const v = variante as VarianteConColor;
+
+  if (typeof v.color === "object" && v.color) {
+    const hex =
+      v.color.hexadecimal ??
+      v.color.codigoHex ??
+      v.color.hex ??
+      v.hexadecimal ??
+      v.codigoHex ??
+      v.hex;
+
+    if (hex) return hex;
+  }
+
+  const hex = v.hexadecimal ?? v.codigoHex ?? v.hex;
+
+  if (hex) return hex;
+
+  return obtenerColorVisualPorNombre(obtenerNombreColor(variante));
+}
+
+function obtenerClaveColor(variante?: VarianteProducto | null) {
+  if (!variante) return "sin-color";
+
+  const idColor = obtenerIdColor(variante);
+
+  if (idColor) {
+    return `color-${idColor}`;
+  }
+
+  return obtenerNombreColor(variante).trim().toLowerCase();
+}
+
 function stockReal(variante?: VarianteProducto | null) {
   if (!variante) return 0;
 
@@ -104,21 +179,16 @@ function varianteTieneStock(variante?: VarianteProducto | null) {
 }
 
 function obtenerColores(variantes: VarianteProducto[]) {
-  const mapa = new Map<
-    string,
-    {
-      nombre: string;
-      hex: string;
-    }
-  >();
+  const mapa = new Map<string, ColorDisponible>();
 
   variantes.forEach((variante) => {
-    const nombre = obtenerNombreColor(variante.color);
+    const clave = obtenerClaveColor(variante);
 
-    if (!mapa.has(nombre)) {
-      mapa.set(nombre, {
-        nombre,
-        hex: obtenerHexColor(variante.color),
+    if (!mapa.has(clave)) {
+      mapa.set(clave, {
+        clave,
+        nombre: obtenerNombreColor(variante),
+        hex: obtenerHexColor(variante),
       });
     }
   });
@@ -128,22 +198,30 @@ function obtenerColores(variantes: VarianteProducto[]) {
 
 function obtenerVariantesPorColor(
   variantes: VarianteProducto[],
-  colorSeleccionado: string
+  claveColorSeleccionado: string
 ) {
   return variantes.filter(
-    (variante) => obtenerNombreColor(variante.color) === colorSeleccionado
+    (variante) => obtenerClaveColor(variante) === claveColorSeleccionado
   );
 }
 
 function colorTieneStock(
   variantes: VarianteProducto[],
-  colorSeleccionado: string
+  claveColorSeleccionado: string
 ) {
   return variantes.some(
     (variante) =>
-      obtenerNombreColor(variante.color) === colorSeleccionado &&
+      obtenerClaveColor(variante) === claveColorSeleccionado &&
       varianteTieneStock(variante)
   );
+}
+
+function obtenerImagenVariante(variante?: VarianteProducto | null) {
+  if (!variante) return null;
+
+  const v = variante as VarianteConColor;
+
+  return v.imagenUrl ?? null;
 }
 
 function obtenerSesionUsuario() {
@@ -165,6 +243,7 @@ function obtenerSesionUsuario() {
 function limpiarSesionLocal() {
   localStorage.removeItem("meowtfit_correo");
   localStorage.removeItem("meowtfit_rol");
+
   sessionStorage.removeItem("meowtfit_correo");
   sessionStorage.removeItem("meowtfit_rol");
 }
@@ -180,6 +259,7 @@ export default function CatalogoDetailPage() {
   const [colorSeleccionado, setColorSeleccionado] = useState("");
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [cantidad, setCantidad] = useState(1);
+
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,17 +269,21 @@ export default function CatalogoDetailPage() {
   const [zoom, setZoom] = useState(false);
   const [panPosition, setPanPosition] = useState({ x: 50, y: 50 });
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
     if (!zoom) return;
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - left) / width) * 100;
-    const y = ((e.clientY - top) / height) * 100;
-    setPanPosition({ x, y });
-  };
 
-  const handleMouseLeave = () => {
+    const { left, top, width, height } =
+      event.currentTarget.getBoundingClientRect();
+
+    const x = ((event.clientX - left) / width) * 100;
+    const y = ((event.clientY - top) / height) * 100;
+
+    setPanPosition({ x, y });
+  }
+
+  function handleMouseLeave() {
     setPanPosition({ x: 50, y: 50 });
-  };
+  }
 
   useEffect(() => {
     async function cargarProducto() {
@@ -222,10 +306,11 @@ export default function CatalogoDetailPage() {
         );
 
         if (primeraVarianteConStock) {
-          setColorSeleccionado(
-            obtenerNombreColor(primeraVarianteConStock.color)
-          );
+          setColorSeleccionado(obtenerClaveColor(primeraVarianteConStock));
           setTallaSeleccionada(primeraVarianteConStock.talla);
+        } else if (data.variantes.length > 0) {
+          setColorSeleccionado(obtenerClaveColor(data.variantes[0]));
+          setTallaSeleccionada(data.variantes[0].talla);
         } else {
           setColorSeleccionado("");
           setTallaSeleccionada("");
@@ -253,6 +338,13 @@ export default function CatalogoDetailPage() {
     return obtenerColores(producto.variantes);
   }, [producto]);
 
+  const colorSeleccionadoInfo = useMemo(() => {
+    return (
+      coloresDisponibles.find((color) => color.clave === colorSeleccionado) ??
+      null
+    );
+  }, [coloresDisponibles, colorSeleccionado]);
+
   const variantesDelColor = useMemo(() => {
     if (!producto || !colorSeleccionado) return [];
 
@@ -265,7 +357,7 @@ export default function CatalogoDetailPage() {
     return (
       producto.variantes.find(
         (variante) =>
-          obtenerNombreColor(variante.color) === colorSeleccionado &&
+          obtenerClaveColor(variante) === colorSeleccionado &&
           variante.talla === tallaSeleccionada
       ) ?? null
     );
@@ -278,17 +370,16 @@ export default function CatalogoDetailPage() {
     : true;
 
   const imagenPrincipal = normalizarImagen(
-    varianteSeleccionada?.imagenUrl ?? producto?.imagenUrl
+    obtenerImagenVariante(varianteSeleccionada) ?? producto?.imagenUrl
   );
 
-  const hexColorActual = colorSeleccionado
-    ? obtenerHexColor(
-        producto?.variantes.find(
-          (v) => obtenerNombreColor(v.color) === colorSeleccionado
-        )?.color ?? null
-      )
-    : null;
+  const subtotalReferencial = producto
+    ? Number(producto.precioBase) * cantidad
+    : 0;
 
+  const hexColorActual =
+    colorSeleccionadoInfo?.hex ??
+    (varianteSeleccionada ? obtenerHexColor(varianteSeleccionada) : null);
 
   function redirigirALogin() {
     navigate("/login", {
@@ -299,32 +390,28 @@ export default function CatalogoDetailPage() {
     });
   }
 
-  function handleSeleccionarColor(color: string) {
+  function handleSeleccionarColor(claveColor: string) {
     if (!producto) return;
 
-    if (!colorTieneStock(producto.variantes, color)) {
-      return;
-    }
-
-    const primeraVarianteDisponible = producto.variantes.find(
-      (variante) =>
-        obtenerNombreColor(variante.color) === color &&
-        varianteTieneStock(variante)
-    );
+    const primeraVarianteDisponible =
+      producto.variantes.find(
+        (variante) =>
+          obtenerClaveColor(variante) === claveColor &&
+          varianteTieneStock(variante)
+      ) ??
+      producto.variantes.find(
+        (variante) => obtenerClaveColor(variante) === claveColor
+      );
 
     if (!primeraVarianteDisponible) return;
 
-    setColorSeleccionado(color);
+    setColorSeleccionado(claveColor);
     setTallaSeleccionada(primeraVarianteDisponible.talla);
     setCantidad(1);
     setMensajeCarrito(null);
   }
 
   function handleSeleccionarTalla(variante: VarianteProducto) {
-    if (!varianteTieneStock(variante)) {
-      return;
-    }
-
     setTallaSeleccionada(variante.talla);
     setCantidad(1);
     setMensajeCarrito(null);
@@ -336,6 +423,44 @@ export default function CatalogoDetailPage() {
 
   function disminuirCantidad() {
     setCantidad((actual) => Math.max(actual - 1, 1));
+  }
+
+  function irACrearCotizacion() {
+    const sesion = obtenerSesionUsuario();
+
+    if (!sesion.estaLogeado) {
+      redirigirALogin();
+      return;
+    }
+
+    if (sesion.rol !== "CLIENTE") {
+      setMensajeCarrito("Solo los clientes pueden solicitar cotizaciones.");
+      return;
+    }
+
+    if (!producto) {
+      setMensajeCarrito("No se pudo identificar el producto.");
+      return;
+    }
+
+    navigate("/cotizaciones/crear", {
+      state: {
+        idProducto: producto.idProducto,
+        idVariante: varianteSeleccionada?.idVariante ?? null,
+        idColor: varianteSeleccionada
+          ? obtenerIdColor(varianteSeleccionada)
+          : null,
+        productoNombre: producto.nombre,
+        categoria: producto.categoria?.nombre ?? null,
+        talla: varianteSeleccionada?.talla ?? null,
+        color: varianteSeleccionada
+          ? obtenerNombreColor(varianteSeleccionada)
+          : null,
+        cantidad,
+        precioUnitario: Number(producto.precioBase),
+        subtotalReferencial,
+      },
+    });
   }
 
   async function handleAgregarAlCarrito() {
@@ -443,7 +568,7 @@ export default function CatalogoDetailPage() {
 
   if (cargando) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7fafc]">
+      <main className="grid min-h-[calc(100vh-66px)] place-items-center bg-[#f7fafc]">
         <p className="text-sm font-medium text-slate-500">
           Cargando producto...
         </p>
@@ -453,11 +578,12 @@ export default function CatalogoDetailPage() {
 
   if (error || !producto) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7fafc] px-6">
+      <main className="grid min-h-[calc(100vh-66px)] place-items-center bg-[#f7fafc] px-6">
         <div className="text-center">
           <p className="text-lg font-bold text-slate-800">
             No se pudo mostrar el producto
           </p>
+
           <p className="mt-2 text-sm text-slate-500">
             {error ?? "Producto no encontrado."}
           </p>
@@ -471,9 +597,8 @@ export default function CatalogoDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7fafc] text-slate-800">
-      
-      <main className="mx-auto max-w-7xl px-6 py-8">
+    <main className="min-h-[calc(100vh-66px)] bg-[#f7fafc] px-6 py-8 text-slate-800">
+      <div className="mx-auto max-w-7xl">
         <Link
           to="/"
           className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#087f99] hover:underline"
@@ -484,16 +609,8 @@ export default function CatalogoDetailPage() {
 
         <section className="grid gap-10 rounded-2xl bg-white p-6 shadow-sm lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            {/*
-             * Dos capas apiladas sobre fondo blanco:
-             *  1. <img> base — preserva sombras y texturas de la prenda
-             *  2. div coloreado con maskImage (misma URL) — recorta el tinte
-             *     al contorno exacto de la prenda cuando la imagen es PNG
-             *     con fondo transparente; mix-blend-mode multiply fusiona
-             *     el color solo sobre píxeles claros (sombras permanecen)
-             */}
             <div
-              className="relative overflow-hidden rounded-xl group flex items-center justify-center"
+              className="group relative flex items-center justify-center overflow-hidden rounded-xl"
               style={{ backgroundColor: "#ffffff", height: "620px" }}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
@@ -501,14 +618,18 @@ export default function CatalogoDetailPage() {
               <img
                 src={imagenPrincipal}
                 alt={producto.nombre}
-                onClick={(e) => {
+                onClick={(event) => {
                   if (!zoom) {
-                    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-                    const x = ((e.clientX - left) / width) * 100;
-                    const y = ((e.clientY - top) / height) * 100;
+                    const { left, top, width, height } =
+                      event.currentTarget.getBoundingClientRect();
+
+                    const x = ((event.clientX - left) / width) * 100;
+                    const y = ((event.clientY - top) / height) * 100;
+
                     setPanPosition({ x, y });
                   }
-                  setZoom(!zoom);
+
+                  setZoom((actual) => !actual);
                 }}
                 style={{
                   position: "absolute",
@@ -518,8 +639,12 @@ export default function CatalogoDetailPage() {
                   objectFit: "contain",
                   zIndex: 1,
                   transform: zoom ? "scale(1.8)" : "scale(1)",
-                  transition: zoom ? "transform 0.05s ease-out" : "transform 0.3s ease",
-                  transformOrigin: zoom ? `${panPosition.x}% ${panPosition.y}%` : "center",
+                  transition: zoom
+                    ? "transform 0.05s ease-out"
+                    : "transform 0.3s ease",
+                  transformOrigin: zoom
+                    ? `${panPosition.x}% ${panPosition.y}%`
+                    : "center",
                   cursor: zoom ? "zoom-out" : "zoom-in",
                 }}
               />
@@ -541,24 +666,26 @@ export default function CatalogoDetailPage() {
                     WebkitMaskPosition: "center",
                     mixBlendMode: "multiply",
                     pointerEvents: "none",
-                    transition: zoom ? "transform 0.05s ease-out, background-color 0.3s ease" : "background-color 0.3s ease, transform 0.3s ease",
+                    transition: zoom
+                      ? "transform 0.05s ease-out, background-color 0.3s ease"
+                      : "background-color 0.3s ease, transform 0.3s ease",
                     transform: zoom ? "scale(1.8)" : "scale(1)",
-                    transformOrigin: zoom ? `${panPosition.x}% ${panPosition.y}%` : "center",
+                    transformOrigin: zoom
+                      ? `${panPosition.x}% ${panPosition.y}%`
+                      : "center",
                   }}
                 />
               )}
 
-              {/* Botón de lupa (zoom) */}
               <button
                 type="button"
-                onClick={() => setZoom(!zoom)}
-                className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:bg-white focus:outline-none"
+                onClick={() => setZoom((actual) => !actual)}
+                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:bg-white focus:outline-none"
                 title={zoom ? "Reducir" : "Ampliar"}
               >
                 {zoom ? <ZoomOut size={20} /> : <ZoomIn size={20} />}
               </button>
 
-              {/* Chip flotante con el color activo */}
               {colorSeleccionado && (
                 <div
                   className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm"
@@ -568,15 +695,17 @@ export default function CatalogoDetailPage() {
                     className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-200"
                     style={{ backgroundColor: hexColorActual ?? "#d1d5db" }}
                   />
+
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
-                    {colorSeleccionado}
+                    {colorSeleccionadoInfo?.nombre ??
+                      obtenerNombreColor(varianteSeleccionada)}
                   </span>
                 </div>
               )}
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-4">
-              {[producto.imagenUrl, varianteSeleccionada?.imagenUrl]
+              {[producto.imagenUrl, obtenerImagenVariante(varianteSeleccionada)]
                 .filter(Boolean)
                 .map((imagen, index) => (
                   <div
@@ -594,21 +723,18 @@ export default function CatalogoDetailPage() {
           </div>
 
           <aside className="flex flex-col justify-start px-1 py-2">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd2d73]">
-                  {producto.categoria?.nombre ?? "Producto"}
-                </p>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd2d73]">
+                {producto.categoria?.nombre ?? "Producto"}
+              </p>
 
-                <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
-                  {producto.nombre}
-                </h1>
+              <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
+                {producto.nombre}
+              </h1>
 
-                <p className="mt-2 text-2xl font-extrabold text-[#bd2d73]">
-                  {formatearPrecio(Number(producto.precioBase))}
-                </p>
-              </div>
-
+              <p className="mt-2 text-2xl font-extrabold text-[#bd2d73]">
+                {formatearPrecio(Number(producto.precioBase))}
+              </p>
             </div>
 
             <p className="mt-6 max-w-xl text-sm leading-6 text-slate-500">
@@ -626,7 +752,7 @@ export default function CatalogoDetailPage() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
                 Color:{" "}
                 <span className="text-slate-800">
-                  {colorSeleccionado || "Sin stock"}
+                  {colorSeleccionadoInfo?.nombre ?? "Sin color"}
                 </span>
               </p>
 
@@ -634,28 +760,27 @@ export default function CatalogoDetailPage() {
                 {coloresDisponibles.map((color) => {
                   const sinStock = !colorTieneStock(
                     producto.variantes,
-                    color.nombre
+                    color.clave
                   );
 
                   return (
                     <button
-                      key={color.nombre}
+                      key={color.clave}
                       type="button"
-                      disabled={sinStock}
-                      onClick={() => handleSeleccionarColor(color.nombre)}
-                      title={
-                        sinStock ? `${color.nombre} sin stock` : color.nombre
-                      }
-                      className={`grid h-9 w-9 place-items-center rounded-full border transition ${colorSeleccionado === color.nombre
+                      onClick={() => handleSeleccionarColor(color.clave)}
+                      title={sinStock ? `${color.nombre} sin stock` : color.nombre}
+                      className={`grid h-10 w-10 place-items-center rounded-full border transition ${
+                        colorSeleccionado === color.clave
                           ? "border-[#bd2d73] ring-2 ring-[#bd2d73]/30"
                           : "border-slate-200"
-                        } ${sinStock
-                          ? "cursor-not-allowed opacity-35"
+                      } ${
+                        sinStock
+                          ? "opacity-50"
                           : "hover:border-[#bd2d73]"
-                        }`}
+                      }`}
                     >
                       <span
-                        className="h-6 w-6 rounded-full border border-slate-200"
+                        className="h-7 w-7 rounded-full border border-slate-200"
                         style={{ backgroundColor: color.hex }}
                       />
                     </button>
@@ -687,15 +812,16 @@ export default function CatalogoDetailPage() {
                     <button
                       key={variante.idVariante}
                       type="button"
-                      disabled={sinStock}
                       onClick={() => handleSeleccionarTalla(variante)}
-                      className={`h-11 rounded-lg border text-sm font-semibold transition ${tallaSeleccionada === variante.talla
+                      className={`h-12 rounded-xl border text-sm font-semibold transition ${
+                        tallaSeleccionada === variante.talla
                           ? "border-[#bd2d73] bg-pink-50 text-[#bd2d73]"
                           : "border-slate-200 bg-white text-slate-600 hover:border-[#bd2d73]"
-                        } ${sinStock
-                          ? "cursor-not-allowed opacity-40 line-through hover:border-slate-200"
+                      } ${
+                        sinStock
+                          ? "opacity-50 line-through hover:border-slate-200"
                           : ""
-                        }`}
+                      }`}
                     >
                       {variante.talla}
                     </button>
@@ -713,19 +839,19 @@ export default function CatalogoDetailPage() {
               {varianteSeleccionada && (
                 <p className="mt-1 text-xs text-slate-500">
                   Variante seleccionada:{" "}
-                  {obtenerNombreColor(varianteSeleccionada.color)} /{" "}
+                  {obtenerNombreColor(varianteSeleccionada)} /{" "}
                   {varianteSeleccionada.talla}
                 </p>
               )}
             </div>
 
             <div className="mt-6 flex items-center gap-4">
-              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-white">
+              <div className="flex h-12 items-center rounded-xl border border-slate-200 bg-white">
                 <button
                   type="button"
                   onClick={disminuirCantidad}
                   disabled={productoSinStock}
-                  className="grid h-11 w-11 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
+                  className="grid h-12 w-12 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
                 >
                   <Minus size={15} />
                 </button>
@@ -738,7 +864,7 @@ export default function CatalogoDetailPage() {
                   type="button"
                   onClick={aumentarCantidad}
                   disabled={productoSinStock || cantidad >= stockDisponible}
-                  className="grid h-11 w-11 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
+                  className="grid h-12 w-12 place-items-center text-slate-500 hover:text-[#087f99] disabled:opacity-40"
                 >
                   <Plus size={15} />
                 </button>
@@ -753,7 +879,7 @@ export default function CatalogoDetailPage() {
                   !varianteSeleccionada ||
                   stockDisponible <= 0
                 }
-                className="h-11 flex-1 bg-[#087f99] text-xs font-bold uppercase tracking-[0.18em] hover:bg-[#076f86]"
+                className="h-12 flex-1 rounded-xl bg-[#087f99] text-xs font-bold uppercase tracking-[0.18em] hover:bg-[#076f86]"
               >
                 {agregandoCarrito
                   ? "Agregando..."
@@ -763,12 +889,24 @@ export default function CatalogoDetailPage() {
               </Button>
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={irACrearCotizacion}
+              disabled={!producto}
+              className="mt-4 h-12 w-full rounded-xl border-[#bd2d73] text-xs font-bold uppercase tracking-[0.18em] text-[#bd2d73] hover:bg-pink-50"
+            >
+              <FileText size={16} />
+              Solicitar cotización
+            </Button>
+
             {mensajeCarrito && (
               <p
-                className={`mt-3 text-sm font-semibold ${mensajeCarrito.includes("correctamente")
+                className={`mt-3 text-sm font-semibold ${
+                  mensajeCarrito.includes("correctamente")
                     ? "text-emerald-600"
                     : "text-red-600"
-                  }`}
+                }`}
               >
                 {mensajeCarrito}
               </p>
@@ -789,7 +927,7 @@ export default function CatalogoDetailPage() {
             </div>
           </aside>
         </section>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
