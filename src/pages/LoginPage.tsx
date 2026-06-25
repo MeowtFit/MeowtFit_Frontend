@@ -47,15 +47,24 @@ export default function LoginPage() {
 
       const rolNormalizado = data.rol.toUpperCase();
 
+      // 1. Limpiamos todas las variables viejas (Incluyendo nombres)
       localStorage.removeItem("meowtfit_correo");
       localStorage.removeItem("meowtfit_rol");
+      localStorage.removeItem("meowtfit_nombres");
       sessionStorage.removeItem("meowtfit_correo");
       sessionStorage.removeItem("meowtfit_rol");
+      sessionStorage.removeItem("meowtfit_nombres");
 
       const storage = rememberMe ? localStorage : sessionStorage;
 
+      // 2. Guardamos los datos frescos en el storage seleccionado
       storage.setItem("meowtfit_correo", data.correo);
       storage.setItem("meowtfit_rol", rolNormalizado);
+      
+      // Backend debe devolver la propiedad en singular (data.nombres), cámbialo aquí.
+      // const nombreUsuario = data.nombres || data.nombre || "Usuario";
+      const nombreUsuario = "Usuario";
+      storage.setItem("meowtfit_nombres", nombreUsuario);
 
       if (rolNormalizado === "ADMINISTRADOR") {
         navigate("/admin/comerciantes", { replace: true });
@@ -72,10 +81,13 @@ export default function LoginPage() {
         return;
       }
 
+      // Si por alguna razón el rol falla aquí, limpiamos todo de nuevo de forma segura
       localStorage.removeItem("meowtfit_correo");
       localStorage.removeItem("meowtfit_rol");
+      localStorage.removeItem("meowtfit_nombres");
       sessionStorage.removeItem("meowtfit_correo");
       sessionStorage.removeItem("meowtfit_rol");
+      sessionStorage.removeItem("meowtfit_nombres");
 
       setError("Rol de usuario no reconocido.");
     } catch (err) {
