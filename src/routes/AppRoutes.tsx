@@ -38,6 +38,10 @@ import ProductoNuevoPage from "../pages/admin/ProductoNuevoPage";
 import ProductoEditarPage from "../pages/admin/ProductoEditarPage";
 import ProductoNuevaVariantePage from "../pages/admin/ProductoNuevaVariantePage";
 
+import CotizacionesTodasPage from "../pages/admin/cotizacion/CotizacionesTodasPage";
+import CotizacionesAsignadasPage from "../pages/admin/cotizacion/CotizacionesAsignadasPage";
+import CotizacionAdminDetailPage from "../pages/admin/cotizacion/CotizacionesDetailPage";
+
 import ProtectedRoute from "./ProtectedRoute";
 import AdminIndexRedirect from "./AdminIndexRedirect";
 
@@ -55,23 +59,43 @@ export const router = createBrowserRouter([
       },
       {
         path: "/carrito",
-        element: <CarritoPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CarritoPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/pedidos",
-        element: <PedidosListPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <PedidosListPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/cotizaciones",
-        element: <CotizacionesClientePage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionesClientePage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/cotizaciones/crear",
-        element: <CotizacionCreatePage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionCreatePage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/cotizaciones/:id",
-        element: <CotizacionClienteDetailPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <CotizacionClienteDetailPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/personalizar/:id",
@@ -81,7 +105,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/perfil",
-    element: <PerfilUsuarioPage />,
+    element: (
+      <ProtectedRoute allowedRoles={["CLIENTE", "ADMINISTRADOR", "COMERCIANTE"]}>
+        <PerfilUsuarioPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/login",
@@ -139,10 +167,24 @@ export const router = createBrowserRouter([
         path: "ventas",
         element: <VentasPage />,
       },
+
       {
         path: "cotizaciones",
         element: <CotizacionesPage />,
       },
+      {
+        path: "cotizaciones/todas",
+        element: <CotizacionesTodasPage />,
+      },
+      {
+        path: "cotizaciones/asignadas",
+        element: <CotizacionesAsignadasPage />,
+      },
+      {
+        path: "cotizaciones/:id",
+        element: <CotizacionAdminDetailPage />,
+      },
+
       {
         path: "pedidos",
         element: <PedidosGestionPage />,

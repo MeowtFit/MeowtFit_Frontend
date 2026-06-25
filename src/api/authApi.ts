@@ -10,63 +10,51 @@ export type LoginRequest = {
 export type LoginResponse = {
   correo: string;
   rol: RolUsuario;
+  id: number;
 };
 
 export type RegistrarUsuarioRequest = {
   nombres: string;
   correo: string;
   contrasena: string;
-  telefono?: string | null;
+  telefono: string;
   rol: RolUsuario;
-
-  dni?: string | null;
-  fechaNacimiento?: string | null;
-  direccionEnvio?: string | null;
-
-  ruc?: string | null;
-  razonSocial?: string | null;
-  telefono2?: string | null;
 };
 
 export type UsuarioResponse = {
-  idUsuario: number;
-  nombres: string;
-  telefono: string | null;
+  idUsuario?: number;
+  id?: number;
+  nombres?: string;
   correo: string;
-  fechaCreacion: string;
-  fechaActualizacion?: string | null;
-  estadoCuenta: "ACTIVO" | "INACTIVO";
-  rol: RolUsuario;
-
-  dni?: string | null;
-  fechaNacimiento?: string | null;
-  direccionEnvio?: string | null;
-  ruc?: string | null;
-  razonSocial?: string | null;
-  telefono2?: string | null;
+  telefono?: string;
+  rol?: RolUsuario;
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...options?.headers,
+      ...(options?.headers ?? {}),
     },
-    ...options,
   });
 
   if (!response.ok) {
     let message = "No se pudo completar la operación.";
 
     try {
-      const data = await response.json();
-      message = data.mensaje ?? data.message ?? data.error ?? message;
+      const errorData = await response.json();
+      message =
+        errorData.mensaje ??
+        errorData.message ??
+        errorData.error ??
+        message;
     } catch {
       message = response.statusText || message;
     }
 
-    throw new Error(`${response.status} ${message}`);
+    throw new Error(message);
   }
 
   if (response.status === 204) {
@@ -76,14 +64,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function loginUsuario(data: LoginRequest): Promise<LoginResponse> {
+export async function loginUsuario(
+  data: LoginRequest
+): Promise<LoginResponse> {
   return request<LoginResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export function registrarUsuario(
+/**
+ * Ajusta esta ruta si tu backend usa otro endpoint.
+ *
+ * Ejemplos posibles según tu controller:
+ * - POST /api/usuarios
+ * - POST /api/usuarios/registrar
+ * - POST /api/auth/register
+ */
+export async function registrarUsuario(
   data: RegistrarUsuarioRequest
 ): Promise<UsuarioResponse> {
   return request<UsuarioResponse>("/api/usuarios", {
@@ -93,15 +91,24 @@ export function registrarUsuario(
 }
 
 export async function logoutUsuario(): Promise<void> {
-  await request<void>("/api/auth/logout", {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
     method: "POST",
+    credentials: "include",
   });
+
+  if (!response.ok && response.status !== 204) {
+    throw new Error("No se pudo cerrar sesión en el servidor.");
+  }
 }
 
 export function limpiarSesionLocal() {
   localStorage.removeItem("meowtfit_correo");
   localStorage.removeItem("meowtfit_rol");
+  localStorage.removeItem("meowtfit_idUsuario");
+  localStorage.removeItem("meowtfit_idComerciante");
 
   sessionStorage.removeItem("meowtfit_correo");
   sessionStorage.removeItem("meowtfit_rol");
+  sessionStorage.removeItem("meowtfit_idUsuario");
+  sessionStorage.removeItem("meowtfit_idComerciante");
 }
