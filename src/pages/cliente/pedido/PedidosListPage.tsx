@@ -146,14 +146,22 @@ export default function PedidosListPage() {
 
   const pedidosActivos = pedidos.filter((p) => !pedidosOcultos.has(p.idPedido));
 
-  const pedidosCancelados = pedidosActivos.filter((p) =>
-    esCancelado(p.estado)
-  );
-
+  // "Pendientes": pedidos activos que aún NO tienen comprobante subido
+  // (PAGO_RECHAZADO también vuelve a pendiente porque hay que re-subir)
   const pedidosPendientes = pedidosActivos.filter(
-    (p) => !esCancelado(p.estado)
+    (p) =>
+      !esCancelado(p.estado) &&
+      (!p.tieneComprobante || p.estado === "PAGO_RECHAZADO")
   );
 
+  // "Canceladas": pedidos con comprobante válido subido + los que el sistema canceló/rechazó
+  const pedidosCancelados = pedidosActivos.filter(
+    (p) =>
+      (p.tieneComprobante && p.estado !== "PAGO_RECHAZADO") ||
+      p.estado === "CANCELADO"
+  );
+
+  // Total por pagar = solo los pendientes (sin comprobante)
   const totalPagar = pedidosPendientes.reduce(
     (sum, p) => sum + Number(p.montoTotal),
     0
@@ -278,7 +286,7 @@ export default function PedidosListPage() {
     <div className="flex min-h-[calc(100vh-66px)] flex-col bg-[#f4f8fb]">
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">
         <h1 className="mb-8 text-3xl font-extrabold text-slate-800">
-          Mis Pedidos
+          Mis pedidos
         </h1>
 
         {error && (
@@ -377,7 +385,11 @@ export default function PedidosListPage() {
                                 onClick={() => abrirModal(pedido)}
                                 className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 transition hover:border-[#087f99] hover:text-[#087f99]"
                               >
-                                Detalles
+                                {pedido.tieneComprobante && pedido.estado !== "PAGO_RECHAZADO"
+                                  ? "Ver detalle"
+                                  : esCancelado(pedido.estado)
+                                    ? "Ver detalle"
+                                    : "Subir factura"}
                               </button>
 
                               <span className={`text-sm font-bold tracking-wide ${colorClass}`}>
@@ -413,7 +425,7 @@ export default function PedidosListPage() {
           <aside className="sticky top-[90px]">
             <div className="rounded-2xl bg-[#9ab8c5] p-6 shadow-sm">
               <h2 className="mb-5 text-lg font-bold text-slate-800">
-                Resumen Tickets
+                Resumen tickets
               </h2>
 
               <div className="space-y-3">

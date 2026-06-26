@@ -32,6 +32,7 @@ import {
 import { crearPedido } from "@/api/pedidosApi";
 
 import { Button } from "@/components/ui/button";
+import { notificarCambioCarrito } from "@/components/layout/CatalogLayout";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
@@ -256,6 +257,7 @@ export default function CarritoPage() {
         idCarrito: item.linea.idCarrito,
         idVariante: item.linea.idVariante,
       });
+      notificarCambioCarrito();
 
       setItems((prev) =>
         prev.map((actual) => {
@@ -310,6 +312,7 @@ export default function CarritoPage() {
   async function eliminarItem(item: ItemCarrito) {
     try {
       await eliminarLineaCarrito(item.linea.idLineaCarrito);
+      notificarCambioCarrito();
       setItems((prev) =>
         prev.filter((x) => x.linea.idLineaCarrito !== item.linea.idLineaCarrito)
       );
@@ -395,6 +398,7 @@ export default function CarritoPage() {
       await Promise.all(
         items.map((item) => eliminarLineaCarrito(item.linea.idLineaCarrito))
       );
+      notificarCambioCarrito();
 
       setItems([]);
 

@@ -14,6 +14,7 @@ import {
   listarLineasPorCarrito,
   obtenerOCrearCarritoActivo,
 } from "@/api/carritoApi";
+import { notificarCambioCarrito } from "@/components/layout/CatalogLayout";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -366,6 +367,7 @@ export default function PersonalizarPrenda() {
         }
       }
 
+      notificarCambioCarrito();
       setMensajeExito("¡Selección aplicada! Redirigiendo al carrito...");
       setTimeout(() => navigate("/carrito"), 1000);
     } catch (err) {

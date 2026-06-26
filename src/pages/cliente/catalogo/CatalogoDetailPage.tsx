@@ -24,6 +24,8 @@ import {
   obtenerOCrearCarritoActivo,
 } from "@/api/carritoApi";
 
+import { notificarCambioCarrito } from "@/components/layout/CatalogLayout";
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const imagenFallback =
@@ -541,6 +543,7 @@ export default function CatalogoDetailPage() {
         });
       }
 
+      notificarCambioCarrito();
       setMensajeCarrito("Producto agregado al carrito correctamente.");
     } catch (err) {
       const message =
