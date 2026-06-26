@@ -105,11 +105,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-[#f8fafc] via-[#fdfbfb] to-[#fceef5] font-sans">
       <header className="flex w-full items-center justify-center pb-4 pt-8">
         <div className="flex flex-col items-center">
-          <img
-            src={logoMeowtfit}
-            alt="Logo Meowtfit"
-            className="h-20 w-auto object-contain"
-          />
+          <Link to="/">
+            <img
+              src={logoMeowtfit}
+              alt="Logo Meowtfit"
+              className="h-20 w-auto object-contain"
+            />
+          </Link>
         </div>
       </header>
 
@@ -218,10 +220,23 @@ export default function LoginPage() {
                 {cargando && <Loader2 className="animate-spin" size={16} />}
                 INICIAR SESIÓN
               </Button>
+              
+              {/* ENLACE AL LOGIN */}
+              <div className="mt-1 text-center text-xs text-gray-500">
+                ¿Primera vez en Meowtfit?{" "}
+                <Link
+                  to="/signup"
+                  className="font-bold tracking-wide text-[#b43b6c] hover:underline"
+                >
+                  Regístrate aquí
+                </Link>
+              </div>
 
+              {/*
               <div className="mb-2 mt-6 text-center text-xs text-gray-500">
                 Accede a tu cuenta exclusiva de Meowtfit.
               </div>
+              */}
             </form>
           </CardContent>
         </Card>

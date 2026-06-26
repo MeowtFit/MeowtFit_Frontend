@@ -106,12 +106,22 @@ export default function PerfilUsuarioPage() {
           <div className="mx-auto mt-6 h-[5px] w-full bg-[#bd2d73]" />
 
           <div className="mt-5 space-y-4">
+            {/* NO ESTA EN EL ERS -> PA LA OTRA ITERACION SERA */}
+            {/* Aquí puedes agregar más botones o enlaces según sea necesario 
             <button
               type="button"
               className="h-14 w-full rounded-md bg-[#087f99] text-2xl font-extrabold text-white shadow-lg shadow-slate-300 transition hover:bg-[#076f86]"
             >
               Editar perfil
             </button>
+            */}
+
+            <Link
+              to="/historialPedidos"
+              className="flex h-14 w-full items-center justify-center rounded-md bg-[#087f99] text-2xl font-extrabold text-white shadow-lg shadow-slate-300 transition hover:bg-[#076f86]"
+            >
+              Ver historial de pedidos
+            </Link>
 
             <Link
               to="/cotizaciones"

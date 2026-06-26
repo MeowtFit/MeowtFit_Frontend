@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -106,6 +106,9 @@ export default function CarritoPage() {
   const [mensajeFactura, setMensajeFactura] = useState<string | null>(null);
   const [modalVistaCliente, setModalVistaCliente] = useState(false);
 
+  // Al inicio de tu componente, junto a tus otros states, agrega este useRef:
+  const cargandoCarritoRef = useRef(false);
+
   // 1. CONTROL DE REDIRECCIÓN SI NO ESTÁ LOGUEADO AL ENTRAR
   useEffect(() => {
     const sesion = obtenerSesionUsuario();
@@ -117,9 +120,25 @@ export default function CarritoPage() {
       return;
     }
 
-    void cargarCarrito();
-    void cargarConfiguracion();
-  }, [navigate, location.pathname]);
+    const inicializarPagina = async () => {
+      // SI YA HAY UNA PETICIÓN EN CURSO, BLOQUEAMOS COMPLETAMENTE LA SEGUNDA
+      if (cargandoCarritoRef.current) return;
+      
+      try {
+        cargandoCarritoRef.current = true; // Encendemos el semáforo
+        await cargarCarrito();
+        await cargarConfiguracion();
+      } catch (error) {
+        console.error("Error cargando componentes de página", error);
+      } finally {
+        cargandoCarritoRef.current = false; // Apagamos el semáforo al terminar todo
+      }
+    };
+
+    void inicializarPagina();
+
+    // Ya no dependemos de variables locales volátiles
+  }, [navigate]);
 
   // 2. ESCUCHAR CUANDO SE CIERRA SESIÓN DESDE EL USER SESSION MENU
   useEffect(() => {
