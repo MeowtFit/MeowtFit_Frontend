@@ -15,6 +15,7 @@ import PedidosListPage from "../pages/cliente/pedido/PedidosListPage";
 import CotizacionCreatePage from "../pages/cliente/cotizacion/CotizacionCreatePage";
 import CotizacionesClientePage from "../pages/cliente/cotizacion/CotizacionClientePage";
 import CotizacionClienteDetailPage from "../pages/cliente/cotizacion/CotizacionDetailPage";
+import PedidosClientePage from "../pages/cliente/pedido/PedidosClientePage";
 
 import PersonalizarPrenda from "../pages/PersonalizarPrenda";
 
@@ -70,6 +71,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={["CLIENTE"]}>
             <PedidosListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/historialPedidos",
+        element: (
+          <ProtectedRoute allowedRoles={["CLIENTE"]}>
+            <PedidosClientePage />
           </ProtectedRoute>
         ),
       },

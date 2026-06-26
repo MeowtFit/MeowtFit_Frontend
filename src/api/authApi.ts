@@ -13,12 +13,23 @@ export type LoginResponse = {
   id: number;
 };
 
+// UPDATE: Se agregaron los campos polimórficos de la BD como opcionales o nulos
 export type RegistrarUsuarioRequest = {
   nombres: string;
   correo: string;
   contrasena: string;
   telefono: string;
   rol: RolUsuario;
+  
+  // Campos exclusivos Cliente B2C
+  dni?: string | null;
+  fechaNacimiento?: string | null;
+  direccionEnvio?: string | null;
+
+  // Campos exclusivos Cliente B2B (Tu regla de negocio: ruc != null identifica B2B)
+  ruc?: string | null;
+  razonSocial?: string | null;
+  telefono2?: string | null;
 };
 
 export type UsuarioResponse = {

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, Building2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,25 +17,48 @@ export default function SignUpPage() {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [telefono, setTelefono] = useState("");
+  
+  // FEATURE: Estados para herencia Single Table B2B
+  const [esEmpresa, setEsEmpresa] = useState(false);
+  const [ruc, setRuc] = useState("");
+  const [razonSocial, setRazonSocial] = useState("");
+
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    // 1. Validar Nombre Completo
+    // 1. Validar Nombre Completo (Obligatorio en Base de Datos `nombres` NOT NULL)
     if (!nombre.trim()) {
-      setError("Ingresa tu nombre completo.");
+      setError("Ingresa el nombre del representante o contacto.");
       return;
     }
 
-    // 2. Validar Correo Electrónico
+    // 2. Validaciones exclusivas del bloque B2B de tu Base de Datos
+    if (esEmpresa) {
+      const rucLimpio = ruc.trim();
+      if (!rucLimpio) {
+        setError("Ingresa el número de RUC de la empresa.");
+        return;
+      }
+      if (rucLimpio.length !== 11 || !/^\d+$/.test(rucLimpio)) {
+        setError("El RUC debe ser un número válido de 11 dígitos.");
+        return;
+      }
+      if (!razonSocial.trim()) {
+        setError("Ingresa la razón social de la empresa.");
+        return;
+      }
+    }
+
+    // 3. Validar Correo Electrónico
     if (!correo.trim()) {
       setError("Ingresa tu correo electrónico.");
       return;
     }
 
-    // 3. Validar Contraseña
+    // 4. Validar Contraseña
     if (!contrasena.trim()) {
       setError("Ingresa una contraseña.");
       return;
@@ -45,7 +68,7 @@ export default function SignUpPage() {
       return;
     }
 
-    // 4. Validar Teléfono
+    // 5. Validar Teléfono
     const telefonoLimpio = telefono.trim();
     if (!telefonoLimpio) {
       setError("Ingresa un número de teléfono.");
@@ -56,8 +79,7 @@ export default function SignUpPage() {
       return;
     }
 
-    const soloNumeros = telefonoLimpio.replace(/^\+\d+/, "").replace(/\D/g, "");
-    
+    const soloNumeros = telefonoLimpio.replace(/^\+\d{1,3}/, "").replace(/\D/g, "");
     if (soloNumeros.length < 4) {
       setError("El teléfono debe contener al menos 4 números (sin contar el prefijo del país).");
       return;
@@ -67,12 +89,16 @@ export default function SignUpPage() {
       setCargando(true);
       setError(null);
 
+      // Enviamos la carga útil estructurada según la Single Table del Backend
       await registrarUsuario({
         nombres: nombre.trim(),
         correo: correo.trim(),
         contrasena,
         telefono: telefonoLimpio,
-        rol: "CLIENTE",
+        rol: "CLIENTE", // El rol estructural se mantiene
+        // Campos condicionales que diferencian B2B en la capa de negocio
+        ruc: esEmpresa ? ruc.trim() : null,
+        razonSocial: esEmpresa ? razonSocial.trim() : null,
       });
 
       navigate("/login", { replace: true });
@@ -93,11 +119,13 @@ export default function SignUpPage() {
       {/* HEADER */}
       <header className="flex w-full items-center justify-center pb-4 pt-8">
         <div className="flex flex-col items-center">
-          <img
-            src={logoMeowtfit}
-            alt="Logo Meowtfit"
-            className="h-20 w-auto object-contain"
-          />
+          <Link to="/">
+            <img
+              src={logoMeowtfit}
+              alt="Logo Meowtfit"
+              className="h-20 w-auto object-contain"
+            />
+          </Link>
         </div>
       </header>
 
@@ -125,7 +153,7 @@ export default function SignUpPage() {
 
           {/* COLUMNA DERECHA (FORMULARIO) */}
           <CardContent className="flex w-full flex-col justify-center p-8 sm:p-12 md:w-1/2">
-            <div className="mb-8">
+            <div className="mb-6">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
@@ -145,19 +173,79 @@ export default function SignUpPage() {
             </div>
 
             <form className="space-y-4" onSubmit={handleSignUp}>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 
-                {/* NOMBRE COMPLETO */}
+                {/* SELECTOR B2B CONFIG: ¿ERES EMPRESA? */}
+                <div 
+                  onClick={() => {
+                    setError(null);
+                    setEsEmpresa(!esEmpresa);
+                  }}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all ${
+                    esEmpresa 
+                      ? "border-[#0a7c98] bg-[#0a7c98]/5 text-[#0a7c98]" 
+                      : "border-gray-200 bg-slate-50 text-gray-600 hover:bg-gray-100/70"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    id="esEmpresa"
+                    checked={esEmpresa}
+                    onChange={() => {}} // Evento nativo delegado al div contenedor
+                    className="h-4 w-4 rounded border-gray-300 text-[#0a7c98] focus:ring-[#0a7c98]"
+                  />
+                  <div className="flex flex-1 items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide">¿Eres una empresa / negocio?</p>
+                      <p className="text-[10px] opacity-80">Habilita esta opción para compras al por mayor y cotizaciones</p>
+                    </div>
+                    <Building2 size={16} className="opacity-70" />
+                  </div>
+                </div>
+
+                {/* NOMBRE COMPLETO / REPRESENTANTE (Siempre visible para cumplir el NOT NULL de 'nombres') */}
                 <Input
                   id="nombre"
                   type="text"
                   value={nombre}
                   onChange={(event) => setNombre(event.target.value)}
-                  placeholder="NOMBRE COMPLETO"
+                  placeholder={esEmpresa ? "NOMBRE DEL CONTACTO / REPRESENTANTE" : "NOMBRE COMPLETO"}
                   className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
                   autoComplete="name"
                   required
                 />
+
+                {/* CAMPOS ADICIONALES EXCLUSIVOS PARA CLIENTE B2B */}
+                {esEmpresa && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    
+                    {/* INPUT: RUC */}
+                    <Input
+                      id="ruc"
+                      type="text"
+                      maxLength={11}
+                      value={ruc}
+                      onChange={(event) => {
+                        const valorNumerico = event.target.value.replace(/\D/g, "");
+                        setRuc(valorNumerico);
+                      }}
+                      placeholder="NÚMERO DE RUC (11 DÍGITOS)"
+                      className="h-12 rounded-sm border-[#0a7c98] bg-white placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                      required
+                    />
+
+                    {/* INPUT: RAZÓN SOCIAL */}
+                    <Input
+                      id="razonSocial"
+                      type="text"
+                      value={razonSocial}
+                      onChange={(event) => setRazonSocial(event.target.value)}
+                      placeholder="RAZÓN SOCIAL (Nombre Legal de la Empresa)"
+                      className="h-12 rounded-sm border-gray-300 placeholder:text-xs placeholder:text-gray-400 focus-visible:ring-[#0a7c98]"
+                      required
+                    />
+                  </div>
+                )}
 
                 {/* CORREO ELECTRÓNICO */}
                 <Input
@@ -198,7 +286,6 @@ export default function SignUpPage() {
                   id="telefono"
                   type="text"
                   value={telefono}
-                  /* Reemplaza en caliente todo lo que NO sea número, +, (), espacios o guiones */
                   onChange={(event) => {
                     const valorFiltrado = event.target.value.replace(/[^\d+() \-]/g, "");
                     setTelefono(valorFiltrado);
@@ -211,7 +298,7 @@ export default function SignUpPage() {
 
                 {/* MENSAJE DE ERROR */}
                 {error && (
-                  <p className="text-xs font-medium text-red-500">{error}</p>
+                  <p className="text-xs font-medium text-red-500 pt-1">{error}</p>
                 )}
               </div>
 
@@ -219,7 +306,7 @@ export default function SignUpPage() {
               <Button
                 type="submit"
                 disabled={cargando}
-                className="mt-6 h-11 w-full rounded-sm bg-[#0a7c98] text-xs font-medium tracking-wide text-white hover:bg-[#086379]"
+                className="mt-4 h-11 w-full rounded-sm bg-[#0a7c98] text-xs font-medium tracking-wide text-white hover:bg-[#086379]"
               >
                 {cargando && <Loader2 className="animate-spin" size={16} />}
                 REGISTRARME

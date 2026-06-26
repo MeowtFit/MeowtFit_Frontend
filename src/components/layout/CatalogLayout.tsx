@@ -87,8 +87,6 @@ export default function CatalogLayout() {
             MEOWTFIT
           </NavLink>
 
-          
-
           <div className="flex items-center gap-4 text-[#087f99]">
             <HeaderIconLink
               to="/carrito"
