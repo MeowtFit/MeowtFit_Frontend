@@ -239,3 +239,46 @@ export async function descargarComprobanteArchivo(idComprobante: number): Promis
 
   return response.blob();
 }
+
+// Tipo genérico para envolver las respuestas paginadas de Spring Boot Data
+export type PageResponse<T> = {
+  content: T[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;         // Página actual (0-indexed)
+  numberOfElements: number;
+  size: number;           // Tamaño de la página
+  totalElements: number;  // Total de registros en la BD
+  totalPages: number;     // Total de páginas distribuidas
+};
+
+// Función para filtrar los pedidos del usuario logueado con paginación
+export async function filtrarMisPedidosApi(params?: {
+  estado?: EstadoPedido | "";
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<Pedido>> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.estado) {
+    searchParams.set("estado", params.estado);
+  }
+  
+  // Spring Boot recibe 'page' y 'size' en el objeto Pageable
+  searchParams.set("page", String(params?.page ?? 0));
+  searchParams.set("size", String(params?.size ?? 5));
+
+  // Consumimos el endpoint que mapeaste en el backend
+  const pageData = await request<PageResponse<Pedido>>(
+    `/api/pedidos/mis-pedidos/filtrar?${searchParams.toString()}`
+  );
+
+  // Adaptamos cada pedido dentro del contenido para inyectarle las imágenes de las variantes
+  const contenidoAdaptado = await Promise.all(pageData.content.map(adaptarPedido));
+
+  return {
+    ...pageData,
+    content: contenidoAdaptado,
+  };
+}
