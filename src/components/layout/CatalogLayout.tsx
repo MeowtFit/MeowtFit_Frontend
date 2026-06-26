@@ -1,14 +1,25 @@
-import type { ReactNode } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, ClipboardList, Eye, Search, ShoppingCart } from "lucide-react";
 
 import UserSessionMenu from "@/components/layout/UserSessionMenu";
+import { obtenerCarritoActivo, listarLineasPorCarrito } from "@/api/carritoApi";
+
+// ─── Evento global para que otras páginas notifiquen cambios en el carrito ────
+export const CART_UPDATED_EVENT = "cart-updated";
+
+export function notificarCambioCarrito() {
+  window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT));
+}
+
+// ─── HeaderIconLink ────────────────────────────────────────────────────────────
 
 type HeaderIconLinkProps = {
   to: string;
   label: string;
   children: ReactNode;
   activeVariant: "cart" | "orders";
+  badge?: number;
 };
 
 function HeaderIconLink({
@@ -16,6 +27,7 @@ function HeaderIconLink({
   label,
   children,
   activeVariant,
+  badge,
 }: HeaderIconLinkProps) {
   return (
     <NavLink
@@ -24,7 +36,7 @@ function HeaderIconLink({
       title={label}
       className={({ isActive }) => {
         const base =
-          "grid h-12 w-12 place-items-center rounded-full transition-all duration-200";
+          "relative grid h-12 w-12 place-items-center rounded-full transition-all duration-200";
 
         if (activeVariant === "cart") {
           return isActive
@@ -38,14 +50,70 @@ function HeaderIconLink({
       }}
     >
       {children}
+
+      {/* Badge numérico — solo visible cuando hay artículos */}
+      {badge != null && badge > 0 && (
+        <span
+          className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold leading-none text-white shadow-sm ring-2 ring-white"
+          aria-label={`${badge} artículos en el carrito`}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </NavLink>
   );
 }
 
+// ─── CatalogLayout ─────────────────────────────────────────────────────────────
+
 export default function CatalogLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const enVistaCliente =
     sessionStorage.getItem("meowtfit_vista_cliente") === "true";
+
+  const [cartCount, setCartCount] = useState(0);
+
+  // Obtener rol para decidir si mostrar el badge
+  const rol =
+    localStorage.getItem("meowtfit_rol") ||
+    sessionStorage.getItem("meowtfit_rol");
+  const correo =
+    localStorage.getItem("meowtfit_correo") ||
+    sessionStorage.getItem("meowtfit_correo");
+  const estaLogeado = Boolean(correo && rol);
+  // Mostrar badge solo a CLIENTE (o en vista cliente de Admin/Comerciante)
+  const mostrarBadge =
+    estaLogeado && (rol === "CLIENTE" || enVistaCliente);
+
+  async function actualizarConteoCarrito() {
+    if (!mostrarBadge) {
+      setCartCount(0);
+      return;
+    }
+    try {
+      const carrito = await obtenerCarritoActivo();
+      const lineas = await listarLineasPorCarrito(carrito.idCarrito);
+      const total = lineas.reduce((sum, l) => sum + l.cantidad, 0);
+      setCartCount(total);
+    } catch {
+      // Sin carrito activo → 0 artículos
+      setCartCount(0);
+    }
+  }
+
+  // Re-fetch en cada cambio de ruta
+  useEffect(() => {
+    void actualizarConteoCarrito();
+  }, [location.pathname, mostrarBadge]);
+
+  // Escuchar evento global cuando otras páginas modifiquen el carrito
+  useEffect(() => {
+    const handler = () => void actualizarConteoCarrito();
+    window.addEventListener(CART_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(CART_UPDATED_EVENT, handler);
+  }, [mostrarBadge]);
 
   function handleVolverPanel() {
     sessionStorage.removeItem("meowtfit_vista_cliente");
@@ -76,7 +144,8 @@ export default function CatalogLayout() {
         </div>
       )}
 
-      <header className="sticky top-0 z-40 border-b border-cyan-200 bg-white"
+      <header
+        className="sticky top-0 z-40 border-b border-cyan-200 bg-white"
         style={enVistaCliente ? { top: "36px" } : undefined}
       >
         <div className="mx-auto flex h-[66px] max-w-7xl items-center justify-between px-6">
@@ -92,6 +161,7 @@ export default function CatalogLayout() {
               to="/carrito"
               label="Carrito"
               activeVariant="cart"
+              badge={cartCount}
             >
               <ShoppingCart size={20} />
             </HeaderIconLink>
